@@ -105,7 +105,7 @@ def main(args):
                     time.time() - consumer.last_commit_timestamp > 5
                 ) and last_msg_timestamp != consumer.last_msg_timestamp:
                     consumer.commit(
-                        pause_queues=True,
+                        pause_poll=True,
                         asynchronous=False,
                     )
                     last_msg_timestamp = consumer.last_msg_timestamp

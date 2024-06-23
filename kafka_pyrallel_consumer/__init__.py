@@ -37,7 +37,7 @@ class PyrallelConsumer(Consumer):
 
         *record_handler (function)*
             Function to process the messages within each thread
-            It takes only one parameter msg (as returned from a consumer.poll call)
+            It takes only the parameter `msg` (as returned from a consumer.poll call)
 
         """
         # Call original Consumer class method
@@ -88,15 +88,21 @@ class PyrallelConsumer(Consumer):
     def commit(
         self,
         *args,
-        pause_queues: bool = False,
+        pause_poll: bool = False,
         **kwargs,
     ):
         """
         Overriding the original consumer poll method
         if asynchronous is set as False it will wait all queue(s) to be empty before sending the commit
+
+        *pause_poll (bool)*
+            It will pause the poll and resumed only after the commit is issued,
+            however that is only applicable if asynchronous is set as False
+            Default value is False
+
         """
         if not kwargs.get("asynchronous", True):
-            if pause_queues:
+            if pause_poll:
                 self._paused = True  # when it is paused the poll will be paused until the commit is completed
             # If commit is synchronous (asynchronous = False) it will wait all queues to be empty
             # only then will issue the commit

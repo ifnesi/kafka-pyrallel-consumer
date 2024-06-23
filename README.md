@@ -40,14 +40,14 @@ consumer.close()
 ```
 
 ## Commit Strategy
-The commit strategy is up to the user to have it defined as the wrapper consumer will not handle that. However with the parallel consumer, upon calling the `commit` class method if the argument `asynchronous` is set as `False`, it will wait all queue(s) to be empty (forcing the poll to be paused), after than it will issue the commit and only then resume the poll.
+The commit strategy is up to the user to have it defined as the wrapper consumer will not handle that. However with the parallel consumer, upon calling the `commit` class method if the argument `asynchronous` is set as `False`, it will wait all queue(s) to be empty (forcing the poll to be paused), after than it will issue the commit and only then resume the poll. The `commit` method has also an argument called `pause_poll` (default `False`) where it will pause the poll and resumed only after the commit is issued, however that is only applicable if `asynchronous` is set as `False`.
 
 If you want to implement your own commit strategy, make sure to set `enable.auto.commit` as `False` on your consumer.
 
 ## Examples
 Before running the examples below, make sure to have Docker up and running, then run `docker-compose up -d`.
 
-Running with one single thread, with ordering and processing 50 messages. Each message will be posted to Postman ECHO.
+Running with one single thread, with ordering and processing 50 messages. Each message will be posted to Postman echo.
 It took around 18 seconds:
 - First message: 16:33:26.414 
 - Last message:  16:33:44.329
