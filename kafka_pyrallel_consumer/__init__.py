@@ -75,7 +75,8 @@ class PyrallelConsumer(Consumer):
 
     def poll(self, *args, **kwargs):
         """
-        Overriding the original consumer poll method. It will poll Kafka and send the message to the corresponding queue/thread
+        Overriding the original consumer poll method.
+        It will poll Kafka and send the message to the corresponding queue/thread
         """
         if not self._stop:
             # Call original Consumer class method
@@ -92,7 +93,8 @@ class PyrallelConsumer(Consumer):
 
     def close(self, *args, **kwargs):
         """
-        Overriding the original consumer close method, it will stop all queues/threads and only then call the close original method
+        Overriding the original consumer close method.
+        It will stop all queues/threads and only then call the close original method
         """
         # Send signal to stop threads (it will do so once all queues are empty)
         logging.info("Stopping parallel consumer threads")
