@@ -21,10 +21,18 @@ class PyrallelConsumer(Consumer):
         **kwargs,
     ):
         """
-        This a wrapper around the Python `Consumer` class (`confluent_kafka` Python lib) called `PyrallelConsumer`. It works similarly to the standard `Consumer` class, however it takes three additional (optional) parameters:
-        - `max_concurrency` (int): Number of concurrent threads to handle the consumed messages, default is 3
-        - `ordering` (bool): If set to True (default) it will partition the message key (CRC32) and send to the corresponding thread, so it can guarantee message order, meaning, same queue will always process the same message key (within the sdame partition). If set to False, it will randomly allocate the first key to one of the threads then the subsequent keys will be allocated in a round-robin fashion
-        - `record_handler` (function): Function to process the messages within each thread. It takes only one parameter `msg` (as returned from a `consumer.poll` call)
+        This a wrapper around the Python Consumer class (confluent_kafka Python lib) called PyrallelConsumer. It works similarly to the standard Consumer class, however it takes three additional (optional) parameters:
+        *max_concurrency (int)*
+            Number of concurrent threads to handle the consumed messages, default is 3
+        *ordering (bool)*
+            If set to True (default) it will partition the message key (CRC32) and
+            send to the corresponding thread, so it can guarantee message order
+            meaning, same queue will always process the same message key (within the sdame partition).
+            If set to False, it will randomly allocate the first key to one of the threads then
+            the subsequent keys will be allocated in a round-robin fashion
+        *record_handler (function)*
+            Function to process the messages within each thread.
+            It takes only one parameter msg (as returned from a consumer.poll call)
         """
         # Call original Consumer class method
         super().__init__(*args, **kwargs)
