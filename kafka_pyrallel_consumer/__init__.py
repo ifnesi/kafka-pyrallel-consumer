@@ -28,6 +28,7 @@ class PyrallelConsumer(Consumer):
         """
         # Call original Consumer class method
         super().__init__(*args, **kwargs)
+
         # Set wrapper instance variables
         self._ordering = ordering == True
         self._record_handler = record_handler
@@ -52,6 +53,9 @@ class PyrallelConsumer(Consumer):
             thread.start()
 
     def _processor(self, queue_id: int):
+        """
+        Execute the record_handler under each thread
+        """
         while True:
             is_empty = self._queues[queue_id].empty()
             if is_empty and self._stop:
@@ -63,7 +67,7 @@ class PyrallelConsumer(Consumer):
 
     def poll(self, *args, **kwargs):
         """
-        Overriding the original consumer poll method
+        Overriding the original consumer poll method. It will poll Kafka and send the message to the corresponding queue/thread
         """
         if not self._stop:
             # Call original Consumer class method
@@ -80,7 +84,7 @@ class PyrallelConsumer(Consumer):
 
     def close(self, *args, **kwargs):
         """
-        Overriding the original consumer close method
+        Overriding the original consumer close method, it will stop all queues/threads and only then call the close original method
         """
         # Send signal to stop threads (it will do so once all queues are empty)
         logging.info("Stopping parallel consumer threads")
