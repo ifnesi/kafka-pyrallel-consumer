@@ -135,14 +135,20 @@ class PyrallelConsumer(Consumer):
 
             # Send message to the corresponding queue/thread
             if msg is not None:
+
                 if not msg.error():
+
                     if self._ordering and msg.key() is not None:
+                        # CRC32 hash the key and mod divide by the number of queues/threads
                         self._queue_id = binascii.crc32(msg.key()) % self._max_concurrency
                     else:
+                        # Round-robin queue/thread allocation (first allocation is random)
                         self._queue_id = (self._queue_id + 1) % self._max_concurrency
+
                     self._queues[self._queue_id].put(msg)
                     self.last_msg = msg
                     self.last_msg_timestamp = msg.timestamp()
+
             return msg
 
     def close(
