@@ -57,32 +57,34 @@ class PyrallelConsumer(Consumer):
         )  # record when the last commit was issued (required ro synchronous commits)
 
         # Create consumer queues and start consumer threads
-        self._threads = list()
         self._queues = list()
+        self._threads = list()
         for n in range(max_concurrency):
             self._queues.append(queue.Queue())
             self._threads.append(
                 threading.Thread(
-                    name=f"Thread_{n}",
                     target=self._processor,
                     args=(n,),
                 )
             )
         for n, thread in enumerate(self._threads):
-            logging.info(f"Starting parallel consumer thread: {n}")
+            logging.info(f"Starting parallel consumer thread #{n}")
             thread.start()
 
-    def _processor(self, queue_id: int):
+    def _processor(
+        self,
+        n: int,
+    ):
         """
         Execute the record_handler under each thread!
         """
         while True:
-            is_empty = self._queues[queue_id].empty()
+            is_empty = self._queues[n].empty()
             if is_empty and self._stop:
-                logging.info(f"Stopped consumer thread: {queue_id}")
+                logging.info(f"Stopped consumer thread #{n}")
                 break
             elif not is_empty:
-                msg = self._queues[queue_id].get()
+                msg = self._queues[n].get()
                 self._record_handler(msg)
 
     def commit(
@@ -107,7 +109,9 @@ class PyrallelConsumer(Consumer):
             # If commit is synchronous (asynchronous = False) it will wait all queues to be empty
             # only then will issue the commit
             for n, queue in enumerate(self._queues):
-                logging.info(f"Waiting for queue #{n} to be empty before committing...")
+                logging.info(
+                    f"Waiting for queue on thread #{n} to be empty before committing..."
+                )
                 while not queue.empty():
                     pass
 
