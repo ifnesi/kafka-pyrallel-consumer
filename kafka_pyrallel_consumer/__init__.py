@@ -50,9 +50,9 @@ class PyrallelConsumer(Consumer):
         self._queue_id = random.randint(0, 99999)
         self._stop = False
         self._paused = False
-        self.last_msg = None
-        self.last_msg_timestamp = -1
-        self.last_commit_timestamp = -1
+        self.last_msg = None  # record a copy of the last messge received
+        self.last_msg_timestamp = -1  # record when the last message was received
+        self.last_commit_timestamp = -1  # record when the last commit was issued (required ro synchronous commits)
 
         # Create consumer queues and start consumer threads
         self._threads = list()
