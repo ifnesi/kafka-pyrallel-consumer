@@ -38,7 +38,7 @@ class RecordHandler:
         self._value_deserialiser = value_deserialiser
         self.url = url
 
-    def postmanEcho(self, msg) -> dict:
+    def postmanEcho(self, msg):
         if msg.error():
             logging.error(msg.error())
         else:
