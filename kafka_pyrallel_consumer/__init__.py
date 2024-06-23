@@ -27,11 +27,11 @@ class PyrallelConsumer(Consumer):
         *ordering (bool)*
             If set to True (default) it will partition the message key (CRC32) and
             send to the corresponding thread, so it can guarantee message order
-            meaning, same queue will always process the same message key (within the sdame partition).
+            meaning, same queue will always process the same message key (within the sdame partition)
             If set to False, it will randomly allocate the first key to one of the threads then
             the subsequent keys will be allocated in a round-robin fashion
         *record_handler (function)*
-            Function to process the messages within each thread.
+            Function to process the messages within each thread
             It takes only one parameter msg (as returned from a consumer.poll call)
         """
         # Call original Consumer class method
@@ -75,7 +75,7 @@ class PyrallelConsumer(Consumer):
 
     def poll(self, *args, **kwargs):
         """
-        Overriding the original consumer poll method.
+        Overriding the original consumer poll method
         It will poll Kafka and send the message to the corresponding queue/thread
         """
         if not self._stop:
