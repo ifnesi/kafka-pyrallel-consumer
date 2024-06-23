@@ -1,16 +1,19 @@
 # kafka-pyrallel-consumer
-Parallel Consumer for Kafka, based on Python `confluent_kafka` lib
+Parallel Consumer for Kafka, based on Python's `confluent_kafka` lib
 
 ## Requirements:
 - Docker
 - Python 3.8+
 - Install python requirements (`python3 -m pip install -r requirements.txt`)
 
+## Pending
+- Create python package
+
 ## How it works
-This a wrapper around the Python `Consumer` class (`confluent_kafka` Python lib) called `PyrallelConsumer`. It works similarly to the standard `Consumer` class, however it takes three additional (optional) parameters:
-- `max_concurrency` (int): Number of concurrent threads to handle the consumed messages, default is 3
-- `ordering` (bool): If set to True (default) it will partition the message key (CRC32) and send to the corresponding thread, so it can guarantee message order, meaning, same queue will always process the same message key (within the sdame partition). If set to False, it will randomly allocate the first key to one of the threads then the subsequent keys will be allocated in a round-robin fashion
-- `record_handler` (function): Function to process the messages within each thread. It takes only one parameter `msg` (as returned from a `consumer.poll` call)
+This a wrapper around the Python `Consumer` class (`confluent_kafka` Python lib). It works similarly to the standard `Consumer` class, however it takes three additional (optional) parameters:
+- `max_concurrency` (int): Number of concurrent threads to handle the consumed messages, default is 3.
+- `ordering` (bool): If set to `True` (default) it will hash the message key (CRC32), mod divide it and send to the corresponding queue/thread, so it can guarantee message order, meaning, same key (within the same topic partition) will always be processed the same queue/thread. If set to `False`, it will randomly allocate the first message to one of the queues/threads then the subsequent keys will be allocated in a round-robin fashion.
+- `record_handler` (function): Function to process the messages within each thread. It takes only one parameter `msg` (as returned from a `consumer.poll` call).
 
 Check the example on `test_parallel_consumer.py`, it imports the wrapper consumer library:
 ```Python
@@ -20,14 +23,14 @@ from kafka_pyrallel_consumer import PyrallelConsumer
 Then when instantiating the consumer using the wrapper library it passes the consumer configuration (as in the standard `Consumer` class), but also the three additional arguments:
 ```Python
 consumer = PyrallelConsumer(
-    conf_confluent,
+    consumer_config,
     ordering=True,
     max_concurrency=10,
     record_handler=record_handler.postmanEcho,
 )
 ```
 
-Where `record_handler.postmanEcho` is the function writtent to handle the consumed messages. The wrapper consumer class will handle the processing in up to 10 separate threads.
+Where `record_handler.postmanEcho` is the function to handle the consumed messages in parallel. The wrapper consumer class will handle the processing in up to 10 separate threads (in this example as `max_concurrency` was set as 10).
 
 Using the wrapper class, all the consumer needs to do is to poll Kafka:
 ```Python
@@ -44,6 +47,8 @@ The commit strategy is up to the user to have it defined as the wrapper consumer
 
 If you want to implement your own commit strategy, make sure to set `enable.auto.commit` as `False` on your consumer.
 
+The example `test_parallel_consumer.py` has implemented a synchronous commit strategy pausing the polling.
+
 ## Examples
 Before running the examples below, make sure to have Docker up and running, then run `docker-compose up -d`.
 
@@ -52,6 +57,19 @@ It took around 18 seconds:
 - First message: 16:33:26.414 
 - Last message:  16:33:44.329
 ```
+% python3 avro_producer.py --iterations 50
+2024-06-23 16:33:17.237 [INFO]: Progress: 10%
+2024-06-23 16:33:17.237 [INFO]: Progress: 20%
+2024-06-23 16:33:17.237 [INFO]: Progress: 30%
+2024-06-23 16:33:17.237 [INFO]: Progress: 40%
+2024-06-23 16:33:17.237 [INFO]: Progress: 50%
+2024-06-23 16:33:17.238 [INFO]: Progress: 60%
+2024-06-23 16:33:17.238 [INFO]: Progress: 70%
+2024-06-23 16:33:17.238 [INFO]: Progress: 80%
+2024-06-23 16:33:17.238 [INFO]: Progress: 90%
+2024-06-23 16:33:17.238 [INFO]: Progress: 100%
+
+% python3 test_parallel_consumer.py
 2024-06-23 16:33:20.118 [INFO]: Starting parallel consumer thread: 0
 2024-06-23 16:33:20.124 [INFO]: Started consumer avro-deserialiser-01 (avro-deserialiser) on topic 'demo_parallel_consumer'
 2024-06-23 16:33:26.414 [INFO]: {'args': {}, 'data': {'payload': '96721478bdb640ebb321d311c7a49963', 'timestamp': 1719156804985}, 'files': {}, 'form': {}, 'headers': {'host': 'postman-echo.com', 'x-request-start': 't=1719156806.383', 'content-length': '75', 'x-forwarded-proto': 'https', 'x-forwarded-port': '443', 'x-amzn-trace-id': 'Root=1-66784046-6b87239125e8ae3806265ba5', 'user-agent': 'python-requests/2.32.3', 'accept-encoding': 'gzip, deflate', 'accept': '*/*', 'content-type': 'application/json'}, 'json': {'payload': '96721478bdb640ebb321d311c7a49963', 'timestamp': 1719156804985}, 'url': 'https://postman-echo.com/post?key=69'}
@@ -116,6 +134,19 @@ It took around 6 seconds:
 - First message: 16:37:51.998 
 - Last message:  16:37:57.429
 ```
+% python3 avro_producer.py --iterations 50
+2024-06-23 16:37:41.977 [INFO]: Progress: 10%
+2024-06-23 16:37:41.977 [INFO]: Progress: 20%
+2024-06-23 16:37:41.977 [INFO]: Progress: 30%
+2024-06-23 16:37:41.977 [INFO]: Progress: 40%
+2024-06-23 16:37:41.977 [INFO]: Progress: 50%
+2024-06-23 16:37:41.978 [INFO]: Progress: 60%
+2024-06-23 16:37:41.978 [INFO]: Progress: 70%
+2024-06-23 16:37:41.978 [INFO]: Progress: 80%
+2024-06-23 16:37:41.978 [INFO]: Progress: 90%
+2024-06-23 16:37:41.978 [INFO]: Progress: 100%
+
+% python3 test_parallel_consumer.py
 2024-06-23 16:37:47.457 [INFO]: Starting parallel consumer thread: 0
 2024-06-23 16:37:47.463 [INFO]: Starting parallel consumer thread: 1
 2024-06-23 16:37:47.494 [INFO]: Starting parallel consumer thread: 2
@@ -188,6 +219,19 @@ It took around 4 seconds:
 - First message: 16:42:11.800 
 - Last message:  16:42:15.601
 ```
+% python3 avro_producer.py --iterations 50
+2024-06-23 16:42:00.155 [INFO]: Progress: 10%
+2024-06-23 16:42:00.155 [INFO]: Progress: 20%
+2024-06-23 16:42:00.155 [INFO]: Progress: 30%
+2024-06-23 16:42:00.155 [INFO]: Progress: 40%
+2024-06-23 16:42:00.155 [INFO]: Progress: 50%
+2024-06-23 16:42:00.156 [INFO]: Progress: 60%
+2024-06-23 16:42:00.156 [INFO]: Progress: 70%
+2024-06-23 16:42:00.156 [INFO]: Progress: 80%
+2024-06-23 16:42:00.156 [INFO]: Progress: 90%
+2024-06-23 16:42:00.156 [INFO]: Progress: 100%
+
+% python3 test_parallel_consumer.py
 2024-06-23 16:42:07.234 [INFO]: Starting parallel consumer thread: 0
 2024-06-23 16:42:07.240 [INFO]: Starting parallel consumer thread: 1
 2024-06-23 16:42:07.271 [INFO]: Starting parallel consumer thread: 2
