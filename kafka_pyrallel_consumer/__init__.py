@@ -26,7 +26,9 @@ class PyrallelConsumer(Consumer):
         - `ordering` (bool): If set to True (default) it will partition the message key (CRC32) and send to the corresponding thread, so it can guarantee message order, meaning, same queue will always process the same message key (within the sdame partition). If set to False, it will randomly allocate the first key to one of the threads then the subsequent keys will be allocated in a round-robin fashion
         - `record_handler` (function): Function to process the messages within each thread. It takes only one parameter `msg` (as returned from a `consumer.poll` call)
         """
+        # Call original Consumer class method
         super().__init__(*args, **kwargs)
+        # Set wrapper instance variables
         self._ordering = ordering == True
         self._record_handler = record_handler
         self._max_concurrency = max(1, int(max_concurrency))
@@ -59,18 +61,15 @@ class PyrallelConsumer(Consumer):
                 msg = self._queues[queue_id].get()
                 self._record_handler(msg)
 
-    def close(self):
-        logging.info("Stopping parallel consumer threads")
-        self._stop = True
-        for thread in self._threads:
-            thread.join()
-        logging.info("All parallel consumer threads stopped")
-        # Stop threads and close consumer group
-        super().close()
-
     def poll(self, *args, **kwargs):
+        """
+        Overriding the original consumer poll method
+        """
         if not self._stop:
+            # Call original Consumer class method
             msg = super().poll(*args, **kwargs)
+
+            # Send message to the corresponding queue/thread
             if msg is not None:
                 if self._ordering and msg.key() is not None:
                     self._queue_id = binascii.crc32(msg.key()) % self._max_concurrency
@@ -78,3 +77,17 @@ class PyrallelConsumer(Consumer):
                     self._queue_id = (self._queue_id + 1) % self._max_concurrency
                 self._queues[self._queue_id].put(msg)
             return msg
+
+    def close(self, *args, **kwargs):
+        """
+        Overriding the original consumer close method
+        """
+        # Send signal to stop threads (it will do so once all queues are empty)
+        logging.info("Stopping parallel consumer threads")
+        self._stop = True
+        for thread in self._threads:
+            thread.join()
+        logging.info("All parallel consumer threads stopped")
+
+        # Stop threads and close consumer group by calling original Consumer class method
+        super().close(*args, **kwargs)
