@@ -47,10 +47,10 @@ class PyrallelConsumer(Consumer):
         self._ordering = ordering == True
         self._record_handler = record_handler
         self._max_concurrency = max(1, int(max_concurrency))
-        self._queue_id = random.randint(0, 99999)
+        self._queue_id = random.randint(0, 999999999)
         self._stop = False
         self._paused = False
-        self.last_msg = None  # record a copy of the last messge received
+        self.last_msg = None  # record a copy of the last message received
         self.last_msg_timestamp = -1  # record when the last message was received
         self.last_commit_timestamp = (
             -1
