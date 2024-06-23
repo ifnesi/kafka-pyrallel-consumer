@@ -9,6 +9,9 @@ from confluent_kafka import Consumer
 
 
 def default_handler(msg):
+    """
+    Do nothing, return message as is
+    """
     return msg
 
 
