@@ -151,20 +151,6 @@ if __name__ == "__main__":
         default=DEFAULT_CONFIG,
     )
     parser.add_argument(
-        "--kafka-section",
-        dest="kafka_section",
-        type=str,
-        help=f"Section in the config file related to the Kafka cluster (e.g. kafka)",
-        default="kafka",
-    )
-    parser.add_argument(
-        "--sr-section",
-        dest="sr_section",
-        type=str,
-        help=f"Section in the config file related to the Schema Registry (e.g. schema-registry)",
-        default="schema-registry",
-    )
-    parser.add_argument(
         "--offset-reset",
         dest="offset_reset",
         help=f"Set auto.offset.reset (default: {OFFSET_RESET[0]})",
