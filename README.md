@@ -34,12 +34,15 @@ Using the wrapper class, all the consumer needs to do is to poll Kafka:
 consumer.poll(timeout=0.25)
 ```
 
-IMPORTANT: Notice the commit strategy is up to the user to have it defined as the wrapper consumer will not handle that.
-
 At last, upon calling the consumer method `.close()` it will wait all thread queue(s) to be empty, then will stop all threads and only then close the consumer group.
 ```Python
 consumer.close()
 ```
+
+## Commit Strategy
+The commit strategy is up to the user to have it defined as the wrapper consumer will not handle that. However with the parallel consumer, upon calling the `commit` class method if the argument `asynchronous` is set as `False`, it will wait all queue(s) to be empty (forcing the poll to be paused), after than it will issue the commit and only then resume the poll.
+
+If you want to implement your own commit strategy, make sure to set `enable.auto.commit` as `False` on your consumer.
 
 ## Examples
 Before running the examples below, make sure to have Docker up and running, then run `docker-compose up -d`.
@@ -49,7 +52,6 @@ It took around 18 seconds:
 - First message: 16:33:26.414 
 - Last message:  16:33:44.329
 ```
-python3 test_parallel_consumer.py
 2024-06-23 16:33:20.118 [INFO]: Starting parallel consumer thread: 0
 2024-06-23 16:33:20.124 [INFO]: Started consumer avro-deserialiser-01 (avro-deserialiser) on topic 'demo_parallel_consumer'
 2024-06-23 16:33:26.414 [INFO]: {'args': {}, 'data': {'payload': '96721478bdb640ebb321d311c7a49963', 'timestamp': 1719156804985}, 'files': {}, 'form': {}, 'headers': {'host': 'postman-echo.com', 'x-request-start': 't=1719156806.383', 'content-length': '75', 'x-forwarded-proto': 'https', 'x-forwarded-port': '443', 'x-amzn-trace-id': 'Root=1-66784046-6b87239125e8ae3806265ba5', 'user-agent': 'python-requests/2.32.3', 'accept-encoding': 'gzip, deflate', 'accept': '*/*', 'content-type': 'application/json'}, 'json': {'payload': '96721478bdb640ebb321d311c7a49963', 'timestamp': 1719156804985}, 'url': 'https://postman-echo.com/post?key=69'}
@@ -114,7 +116,6 @@ It took around 6 seconds:
 - First message: 16:37:51.998 
 - Last message:  16:37:57.429
 ```
-python3 test_parallel_consumer.py
 2024-06-23 16:37:47.457 [INFO]: Starting parallel consumer thread: 0
 2024-06-23 16:37:47.463 [INFO]: Starting parallel consumer thread: 1
 2024-06-23 16:37:47.494 [INFO]: Starting parallel consumer thread: 2
@@ -187,7 +188,6 @@ It took around 4 seconds:
 - First message: 16:42:11.800 
 - Last message:  16:42:15.601
 ```
-python3 test_parallel_consumer.py
 2024-06-23 16:42:07.234 [INFO]: Starting parallel consumer thread: 0
 2024-06-23 16:42:07.240 [INFO]: Starting parallel consumer thread: 1
 2024-06-23 16:42:07.271 [INFO]: Starting parallel consumer thread: 2

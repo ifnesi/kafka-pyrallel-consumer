@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import os
+import time
 import logging
 import argparse
 import requests
@@ -79,6 +80,7 @@ def main(args):
         "group.id": args.group_id,
         "client.id": args.client_id,
         "auto.offset.reset": args.offset_reset,
+        "enable.auto.commit": False,
     }
     conf_confluent.update(dict(kconfig["kafka"]))
     consumer = PyrallelConsumer(
@@ -90,14 +92,19 @@ def main(args):
 
     try:
         consumer.subscribe([args.topic])
-
         logging.info(
             f"Started consumer {conf_confluent['client.id']} ({conf_confluent['group.id']}) on topic '{args.topic}'"
         )
+
+        last_msg_timestamp = consumer.last_msg_timestamp
         while True:
             try:
                 # Poll kafka, however it will also have the messages processed as per function set on the `record_handler` argument
                 consumer.poll(timeout=0.25)
+                if (time.time() - consumer.last_commit_timestamp > 5) and last_msg_timestamp != consumer.last_msg_timestamp:
+                    consumer.commit(asynchronous=False)
+                    last_msg_timestamp = consumer.last_msg_timestamp
+
             except Exception as err:
                 logging.error(err)
 

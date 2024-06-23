@@ -1,3 +1,4 @@
+import time
 import queue
 import random
 import logging
@@ -43,6 +44,10 @@ class PyrallelConsumer(Consumer):
         self._max_concurrency = max(1, int(max_concurrency))
         self._queue_id = random.randint(0, 99999)
         self._stop = False
+        self._paused = False
+        self.last_msg = None
+        self.last_msg_timestamp = -1
+        self.last_commit_timestamp = -1
 
         # Create consumer queues and start consumer threads
         self._threads = list()
@@ -62,7 +67,7 @@ class PyrallelConsumer(Consumer):
 
     def _processor(self, queue_id: int):
         """
-        Execute the record_handler under each thread
+        Execute the record_handler under each thread!
         """
         while True:
             is_empty = self._queues[queue_id].empty()
@@ -73,12 +78,32 @@ class PyrallelConsumer(Consumer):
                 msg = self._queues[queue_id].get()
                 self._record_handler(msg)
 
+    def commit(self, *args, **kwargs):
+        """
+        Overriding the original consumer poll method
+        if asynchronous is set as True it will wait all queue(s) to be empty
+        before sending the commit
+        """
+        self._paused = True
+        if kwargs.get("asynchronous") == False:
+            # If commit is synchronous (asynchronous = False) it will wait all queues to be empty
+            # only then will issue the commit
+            for n, queue in enumerate(self._queues):
+                logging.info(f"Waiting for queue #{n} to be empty before committing...")
+                while not queue.empty():
+                    pass
+
+        # Call original Consumer class method
+        super().commit(*args, **kwargs)
+        self.last_commit_timestamp = time.time()
+        self._paused = False
+
     def poll(self, *args, **kwargs):
         """
         Overriding the original consumer poll method
         It will poll Kafka and send the message to the corresponding queue/thread
         """
-        if not self._stop:
+        if not (self._stop or self._paused):
             # Call original Consumer class method
             msg = super().poll(*args, **kwargs)
 
@@ -89,6 +114,8 @@ class PyrallelConsumer(Consumer):
                 else:
                     self._queue_id = (self._queue_id + 1) % self._max_concurrency
                 self._queues[self._queue_id].put(msg)
+                self.last_msg = msg
+                self.last_msg_timestamp = msg.timestamp()
             return msg
 
     def close(self, *args, **kwargs):
