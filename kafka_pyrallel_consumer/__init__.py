@@ -47,7 +47,7 @@ class PyrallelConsumer(Consumer):
         super().__init__(*args, **kwargs)
 
         # Set wrapper instance variables
-        self._ordering = ordering == True
+        self._ordering = (ordering == True)
         self._record_handler = record_handler
         self._max_concurrency = max(1, int(max_concurrency))
         self._queue_id = random.randint(0, 999999999)
@@ -71,7 +71,7 @@ class PyrallelConsumer(Consumer):
                 )
             )
         for n, thread in enumerate(self._threads):
-            logging.info(f"Starting parallel consumer thread #{n}")
+            logging.info(f"Starting parallel consumer thread #{n}...")
             thread.start()
 
     def _processor(
@@ -166,11 +166,11 @@ class PyrallelConsumer(Consumer):
         It will stop all queues/threads and only then call the close original method
         """
         # Send signal to stop threads (it will do so once all queues are empty)
-        logging.info("Stopping all parallel consumer threads")
+        logging.info("Stopping all parallel consumer threads...")
         self._stop = True
         for thread in self._threads:
             thread.join()
-        logging.info("All parallel consumer threads have been stopped")
+        logging.info("All parallel consumer threads have been stopped!")
 
         # Stop threads and close consumer group by calling original Consumer class method
         super().close(*args, **kwargs)
