@@ -81,15 +81,15 @@ def main(args):
     )
 
     # Configure Kafka paralle consumer
-    conf_confluent = {
+    consumer_config = {
         "group.id": args.group_id,
         "client.id": args.client_id,
         "auto.offset.reset": args.offset_reset,
         "enable.auto.commit": False,
     }
-    conf_confluent.update(dict(kconfig["kafka"]))
+    consumer_config.update(dict(kconfig["kafka"]))
     consumer = PyrallelConsumer(
-        conf_confluent,
+        consumer_config,
         ordering=True,
         max_concurrency=5,
         record_handler=record_handler.postmanEcho,
@@ -98,7 +98,7 @@ def main(args):
     try:
         consumer.subscribe([args.topic])
         logging.info(
-            f"Started consumer {conf_confluent['client.id']} ({conf_confluent['group.id']}) on topic '{args.topic}'"
+            f"Started consumer {consumer_config['client.id']} ({consumer_config['group.id']}) on topic '{args.topic}'"
         )
 
         last_msg_timestamp = consumer.last_msg_timestamp
@@ -122,8 +122,12 @@ def main(args):
         logging.info("CTRL-C pressed by user!")
 
     finally:
+        try:
+            consumer.commit(asynchronous=False)
+        except Exception as err:
+            logging.error(err)
         logging.info(
-            f"Closing consumer {conf_confluent['client.id']} ({conf_confluent['group.id']})"
+            f"Closing consumer {consumer_config['client.id']} ({consumer_config['group.id']})"
         )
         consumer.close()
 

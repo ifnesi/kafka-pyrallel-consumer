@@ -60,11 +60,11 @@ def main(args):
     kconfig.read(os.path.join(args.config_filename))
 
     # Configure Kafka consumer
-    conf_confluent = {
+    consumer_config = {
         "client.id": args.client_id,
     }
-    conf_confluent.update(dict(kconfig["kafka"]))
-    producer = Producer(conf_confluent)
+    consumer_config.update(dict(kconfig["kafka"]))
+    producer = Producer(consumer_config)
 
     # Configure SR client
     sr_conf = dict(kconfig["schema-registry"])
