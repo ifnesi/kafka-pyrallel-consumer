@@ -161,11 +161,11 @@ class PyrallelConsumer(Consumer):
         It will stop all queues/threads and only then call the close original method
         """
         # Send signal to stop threads (it will do so once all queues are empty)
-        logging.info("Stopping parallel consumer threads")
+        logging.info("Stopping all parallel consumer threads")
         self._stop = True
         for thread in self._threads:
             thread.join()
-        logging.info("All parallel consumer threads stopped")
+        logging.info("All parallel consumer threads have been stopped")
 
         # Stop threads and close consumer group by calling original Consumer class method
         super().close(*args, **kwargs)
