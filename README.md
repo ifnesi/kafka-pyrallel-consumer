@@ -298,3 +298,12 @@ It took around 4 seconds:
 2024-06-23 16:42:18.600 [INFO]: Stopped consumer thread: 2
 2024-06-23 16:42:18.600 [INFO]: All parallel consumer threads stopped
 ```
+
+
+# External References
+- [Introducing the Confluent Parallel Consumer](https://www.confluent.io/en-gb/blog/introducing-confluent-parallel-message-processing-client/)
+- [How to use the Confluent Parallel Consumer](https://developer.confluent.io/tutorials/confluent-parallel-consumer/confluent.html)
+
+Check out [Confluent's Developer portal](https://developer.confluent.io), it has free courses, documents, articles, blogs, podcasts and so many more content to get you up and running with a fully managed Apache Kafka service.
+
+Disclaimer: I work for Confluent :wink:
