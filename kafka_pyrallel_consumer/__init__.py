@@ -86,11 +86,10 @@ class PyrallelConsumer(Consumer):
     def commit(self, *args, **kwargs):
         """
         Overriding the original consumer poll method
-        if asynchronous is set as True it will wait all queue(s) to be empty
-        before sending the commit
+        if asynchronous is set as False it will wait all queue(s) to be empty before sending the commit
         """
         self._paused = True
-        if kwargs.get("asynchronous") == False:
+        if not kwargs.get("asynchronous", True):
             # If commit is synchronous (asynchronous = False) it will wait all queues to be empty
             # only then will issue the commit
             for n, queue in enumerate(self._queues):
