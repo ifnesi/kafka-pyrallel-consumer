@@ -1,0 +1,16 @@
+{
+    "name": "test",
+    "namespace": "parallelConsumer.confluent.io",
+    "type": "record",
+    "fields": [
+        {
+            "name": "payload",
+            "type": "string"
+        },
+        {
+            "name": "timestamp",
+            "type": "long",
+            "logicalType": "time-millis"
+        }
+    ]
+}
