@@ -45,7 +45,9 @@ class DeliveryReport:
     def report(self, err, msg):
         self._iteration += 1
         if err is not None:
-            logging.error("Delivery failed for User record {}: {}".format(msg.key(), err))
+            logging.error(
+                "Delivery failed for User record {}: {}".format(msg.key(), err)
+            )
         else:
             progress_bar = int(100 * self._iteration / self._iterations)
             if progress_bar % 10 == 0 and progress_bar != self._last_report:

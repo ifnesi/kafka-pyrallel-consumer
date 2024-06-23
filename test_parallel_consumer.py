@@ -74,7 +74,7 @@ def main(args):
         "https://postman-echo.com/post",
     )
 
-    # Configure Kafka consumer
+    # Configure Kafka paralle consumer
     conf_confluent = {
         "group.id": args.group_id,
         "client.id": args.client_id,
@@ -83,9 +83,9 @@ def main(args):
     conf_confluent.update(dict(kconfig["kafka"]))
     consumer = PyrallelConsumer(
         conf_confluent,
+        ordering=True,
+        max_concurrency=5,
         record_handler=record_handler.postmanEcho,
-        max_concurrency=25,
-        ordering=False,
     )
 
     try:
@@ -96,6 +96,7 @@ def main(args):
         )
         while True:
             try:
+                # Poll kafka, however it will also have the messages processed as per function set on the `record_handler` argument
                 consumer.poll(timeout=0.25)
             except Exception as err:
                 logging.error(err)
@@ -104,7 +105,6 @@ def main(args):
         logging.info("CTRL-C pressed by user!")
 
     finally:
-        consumer.stop()
         logging.info(
             f"Closing consumer {conf_confluent['client.id']} ({conf_confluent['group.id']})"
         )
