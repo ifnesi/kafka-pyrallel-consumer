@@ -1,6 +1,11 @@
 # kafka-pyrallel-consumer
 Parallel Consumer for Kafka, based on Python confluent_kafka lib
 
+## Requirements:
+- Docker
+- Python 3.8+
+- Install python requirements (`python3 -m pip install -r requirements.txt`)
+
 ## How it works
 This a wrapper around the Python `Consumer` class (`confluent_kafka` Python lib) called `PyrallelConsumer`. It works similarly to the standard `Consumer` class, however it takes three additional (optional) parameters:
 - `max_concurrency` (int): Number of concurrent threads to handle the consumed messages, default is 3
@@ -37,6 +42,8 @@ consumer.close()
 ```
 
 ## Examples
+Before running the examples below, make sure to have Docker up and running, then run `docker-compose up -d`.
+
 Running with one single thread, with ordering and processing 50 messages. Each message will be posted to Postman ECHO.
 It took around 18 seconds:
 - First message: 16:33:26.414 
