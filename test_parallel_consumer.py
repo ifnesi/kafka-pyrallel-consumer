@@ -33,7 +33,12 @@ from kafka_pyrallel_consumer import PyrallelConsumer
 
 
 class RecordHandler:
-    def __init__(self, key_deserialiser, value_deserialiser, url: str):
+    def __init__(
+        self,
+        key_deserialiser,
+        value_deserialiser,
+        url: str,
+    ):
         self._key_deserialiser = key_deserialiser
         self._value_deserialiser = value_deserialiser
         self.url = url
