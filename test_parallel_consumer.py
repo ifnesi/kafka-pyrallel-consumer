@@ -50,7 +50,7 @@ class RecordHandler:
                 ),
             )
             response = requests.post(
-                url=f"{self.url}?=key={key}",
+                url=f"{self.url}?key={key}",
                 json=message,
             )
             logging.info(response.json())
