@@ -39,9 +39,9 @@ class RecordHandler:
         value_deserialiser,
         url: str,
     ):
+        self.url = url
         self._key_deserialiser = key_deserialiser
         self._value_deserialiser = value_deserialiser
-        self.url = url
 
     def postmanEcho(self, msg):
         if msg.error():
