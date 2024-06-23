@@ -3,5 +3,3 @@ _venv
 .DS_Store
 *.pyc
 __pycache__/
-_*.py
-_*.sh
