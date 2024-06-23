@@ -59,7 +59,7 @@ class RecordHandler:
 
 def main(args):
     kconfig = ConfigParser()
-    kconfig.read(os.path.join(args.config_filename))
+    kconfig.read(os.path.join(args.config))
 
     # Configure SR client
     string_deserializer = StringDeserializer("utf_8")
@@ -144,8 +144,8 @@ if __name__ == "__main__":
         default="demo_parallel_consumer",
     )
     parser.add_argument(
-        "--config-filename",
-        dest="config_filename",
+        "--config",
+        dest="config",
         type=str,
         help=f"Select config filename for additional configuration, such as credentials (default: {DEFAULT_CONFIG})",
         default=DEFAULT_CONFIG,
