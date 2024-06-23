@@ -24,21 +24,21 @@ class PyrallelConsumer(Consumer):
         """
         This a wrapper around the Python Consumer class (confluent_kafka Python lib) called PyrallelConsumer.
         It works similarly to the standard Consumer class, however it takes three additional (optional) parameters:
-        
+
         *max_concurrency (int)*
             Number of concurrent threads to handle the consumed messages, default is 3
-        
+
         *ordering (bool)*
             If set to True (default) it will partition the message key (CRC32) and
             send to the corresponding thread, so it can guarantee message order
             meaning, same queue will always process the same message key (within the sdame partition)
             If set to False, it will randomly allocate the first key to one of the threads then
             the subsequent keys will be allocated in a round-robin fashion
-        
+
         *record_handler (function)*
             Function to process the messages within each thread
             It takes only one parameter msg (as returned from a consumer.poll call)
-        
+
         """
         # Call original Consumer class method
         super().__init__(*args, **kwargs)
@@ -52,7 +52,9 @@ class PyrallelConsumer(Consumer):
         self._paused = False
         self.last_msg = None  # record a copy of the last messge received
         self.last_msg_timestamp = -1  # record when the last message was received
-        self.last_commit_timestamp = -1  # record when the last commit was issued (required ro synchronous commits)
+        self.last_commit_timestamp = (
+            -1
+        )  # record when the last commit was issued (required ro synchronous commits)
 
         # Create consumer queues and start consumer threads
         self._threads = list()
@@ -83,12 +85,19 @@ class PyrallelConsumer(Consumer):
                 msg = self._queues[queue_id].get()
                 self._record_handler(msg)
 
-    def commit(self, *args, **kwargs):
+    def commit(
+        self,
+        *args,
+        pause_queues: bool = False,
+        **kwargs,
+    ):
         """
         Overriding the original consumer poll method
         if asynchronous is set as False it will wait all queue(s) to be empty before sending the commit
         """
-        self._paused = True
+        if pause_queues:
+            self._paused = True
+
         if not kwargs.get("asynchronous", True):
             # If commit is synchronous (asynchronous = False) it will wait all queues to be empty
             # only then will issue the commit
@@ -100,9 +109,15 @@ class PyrallelConsumer(Consumer):
         # Call original Consumer class method
         super().commit(*args, **kwargs)
         self.last_commit_timestamp = time.time()
-        self._paused = False
 
-    def poll(self, *args, **kwargs):
+        if pause_queues:
+            self._paused = False
+
+    def poll(
+        self,
+        *args,
+        **kwargs,
+    ):
         """
         Overriding the original consumer poll method
         It will poll Kafka and send the message to the corresponding queue/thread
@@ -122,7 +137,11 @@ class PyrallelConsumer(Consumer):
                 self.last_msg_timestamp = msg.timestamp()
             return msg
 
-    def close(self, *args, **kwargs):
+    def close(
+        self,
+        *args,
+        **kwargs,
+    ):
         """
         Overriding the original consumer close method.
         It will stop all queues/threads and only then call the close original method

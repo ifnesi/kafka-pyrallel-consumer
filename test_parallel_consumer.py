@@ -101,8 +101,13 @@ def main(args):
             try:
                 # Poll kafka, however it will also have the messages processed as per function set on the `record_handler` argument
                 consumer.poll(timeout=0.25)
-                if (time.time() - consumer.last_commit_timestamp > 5) and last_msg_timestamp != consumer.last_msg_timestamp:
-                    consumer.commit(asynchronous=False)
+                if (
+                    time.time() - consumer.last_commit_timestamp > 5
+                ) and last_msg_timestamp != consumer.last_msg_timestamp:
+                    consumer.commit(
+                        pause_queues=True,
+                        asynchronous=False,
+                    )
                     last_msg_timestamp = consumer.last_msg_timestamp
 
             except Exception as err:
