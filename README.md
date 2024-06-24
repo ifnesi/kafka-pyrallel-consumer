@@ -79,6 +79,23 @@ The example `test_parallel_consumer.py` has implemented a synchronous commit str
 ## Output: `test_parallel_consumer.py`
 Before running the examples below, make sure to have Docker up and running, then run `docker-compose up -d` so it can spin a minimal [Confluent Platform](https://www.confluent.io/en-gb/product/confluent-platform/) Kafka cluster up.
 
+The `test_parallel_consumer.py` python script will run a parallel consumer over the Kafka topic `demo_parallel_consumer`, here is an example of a message:
+```
+Key = 09
+Value = {
+  "payload": "cad4f3486f2d41e895945afbaf47f9ac",
+  "timestamp": 1719246245722
+}
+```
+
+The consumer will then submit a POST request as follows:
+```
+POST https://postman-echo.com/post?key=09
+Body as per message Value
+```
+
+To visualise the messages on that topic please navigate to [Confluent Control Center](https://docs.confluent.io/platform/current/control-center/index.html) at http://localhost:9021/clusters.
+
 Running with one single thread, with ordering and processing 50 messages. Each message will be posted to Postman echo.
 It took around 18 seconds:
 - First message: 16:33:26.414 
