@@ -12,7 +12,7 @@ Parallel Consumer for Kafka, based on Python's `confluent_kafka` lib.
 ## What is it?
 This a wrapper around the Python `Consumer` class (`confluent_kafka` Python lib), called `PyrallelConsumer`.
 
-This wrapper class provides a way to process Kafka messages in parallel, improving efficiency and speed. It enables fine-grained control over parallelism beyond the default partition-level in Kafka, allowing key-level and message-level parallelism. This helps in handling fixed partition counts, integrating with slow databases or services, and managing queue-like message processing more effectively. The class is designed to optimise performance without requiring extensive changes to your existing Kafka setup.
+This wrapper class provides a way to process Kafka messages in parallel within the same consumer, improving efficiency and speed. It enables fine-grained control over parallelism beyond the default partition-level in Kafka, allowing key-level and message-level parallelism. This helps in handling fixed partition counts, integrating with slow databases or services (I/O bounded processing), and managing queue-like message processing more effectively. The class is designed to optimise performance without requiring extensive changes to your existing Kafka consumer.
 
 It also has the capability to deduplicate messages within the topic partitions it is currently consuming from.
 
@@ -33,7 +33,7 @@ Deduplicate messages messages within the topic partitions:
 - `dedup_by_key` (bool): Deduplicate messages by the Key. The default is False. To deduplicate messages by Key and Value, set both `dedup_by_key` and `dedup_by_value` as True.
 - `dedup_by_value` (bool): Deduplicate messages by the Value. The default is False. To deduplicate messages by Key and Value, set both `dedup_by_key` and `dedup_by_value` as True.
 - `dedup_max_lru` (int): Max Least Recently Used (LRU) cache size. The default is 32768.
-- `dedup_algorithm` (str): Deduplication algorithm to use. Options available are: `md5`, `sha1`, `sha224`, `sha256`, `sha384`, `sha3_224`, `sha3_256`, `sha3_384`, `sha3_512`, `sha512`. The default is `sha256`.
+- `dedup_algorithm` (str): Deduplication algorithm to use. Options available are: `md5`, `sha1`, `sha224`, `sha256`, `sha384`, `sha512`, `sha3_224`, `sha3_256`, `sha3_384`, `sha3_512`. The default is `sha256`.
 
 ## Example: `test_parallel_consumer.py`
 Check the example on `test_parallel_consumer.py`, it imports the wrapper consumer library:
