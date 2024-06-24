@@ -1,5 +1,5 @@
 # kafka-pyrallel-consumer
-Parallel Consumer for Kafka, based on Python's `confluent_kafka` lib.
+Parallel Consumer for Kafka, based on Python's [confluent_kafka](https://docs.confluent.io/platform/current/clients/confluent-kafka-python/html/index.html) lib.
 
 ## Requirements
 - Docker
@@ -10,9 +10,9 @@ Parallel Consumer for Kafka, based on Python's `confluent_kafka` lib.
 - Create python package
 
 ## What is it?
-This a wrapper around the Python `Consumer` class (`confluent_kafka` Python lib), called `PyrallelConsumer`.
+This a wrapper around the Python `Consumer` class ([confluent_kafka](https://docs.confluent.io/platform/current/clients/confluent-kafka-python/html/index.html) Python lib), called `PyrallelConsumer`.
 
-This wrapper class provides a way to process Kafka messages in parallel within the same consumer, improving efficiency and speed. It enables fine-grained control over parallelism beyond the default partition-level in Kafka, allowing key-level and message-level parallelism. This helps in handling fixed partition counts, integrating with slow databases or services (I/O bounded processing), and managing queue-like message processing more effectively. The class is designed to optimise performance without requiring extensive changes to your existing Kafka consumer.
+This wrapper class provides a way to process Kafka messages in parallel within the same consumer, improving efficiency and speed. It enables fine-grained control over parallelism beyond the default partition-level in Kafka, allowing key-level and message-level parallelism. This helps in handling fixed partition counts, integrating with slow databases or services (I/O bounded), and managing queue-like message processing more effectively. The class is designed to optimise performance without requiring extensive changes to your existing Kafka consumer.
 
 It also has the capability to deduplicate messages within the topic partitions it is currently consuming from.
 
