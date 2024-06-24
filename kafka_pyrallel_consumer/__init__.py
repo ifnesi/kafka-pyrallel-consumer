@@ -301,10 +301,10 @@ class PyrallelConsumer(Consumer):
         Overriding the original consumer close method.
 
         *graceful_shutdown (bool)*
-            When `True` (default) it will stop all queues/threads before the consumer leaves the consumer group.
+            When `True` (default) it will stop the poll and wait all queues/threads before the consumer leaves the consumer group.
 
         *commit_before_closing (bool)*
-            When `True` (default) it will commit before the consumer leaves the consumer group.
+            When `True` (default) it will issue a final commit before the consumer leaves the consumer group.
 
         *commit_asynchronous (bool)*
             When `False` (default) it will execute a synchronous commit (only applicable if commit_before_closing is `True`).
