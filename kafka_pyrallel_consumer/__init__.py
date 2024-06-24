@@ -65,18 +65,20 @@ class PyrallelConsumer(Consumer):
         *dedup_by_key (bool)*
             Deduplicate messages by the Key. The default is False.
             To deduplicate messages by Key and Value, set both dedup_by_key and dedup_by_value as True.
+            This dedup wil not work properly in case of consumer rebalance as there will be no cached dedup between consumers.
 
         *dedup_by_value (bool)*
             Deduplicate messages by the Value. The default is False.
             To deduplicate messages by Key and Value, set both dedup_by_key and dedup_by_value as True.
+            This dedup wil not work properly in case of consumer rebalance as there will be no cached dedup between consumers.
 
         *dedup_max_lru (int)*
             Max Least Recently Used (LRU) cache size. The default is 32768.
 
         *dedup_algorithm (str)*
-            Deduplication algorithm to use.
-            Options available are: md5, sha1, sha224, sha256, sha384, sha3_224, sha3_256, sha3_384, sha3_512, sha512.
-            The default is sha256.
+            Deduplication hashing algorithm to use.
+            Options available are: `md5`, `sha1`, `sha224`, `sha256` (default), `sha384`, `sha512`, `sha3_224`, `sha3_256`, `sha3_384`, `sha3_512`.
+            To reduce memory footprint, the cached dedup will be a hash of the Key/Value other than the actual data.
         """
         # Call original Consumer class method
         super().__init__(*args, **kwargs)
