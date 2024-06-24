@@ -65,12 +65,12 @@ class PyrallelConsumer(Consumer):
         *dedup_by_key (bool)*
             Deduplicate messages by the Key. The default is False.
             To deduplicate messages by Key and Value, set both dedup_by_key and dedup_by_value as True.
-            This dedup wil not work properly in case of consumer rebalance as there will be no cached dedup between consumers.
+            This dedup wil not work properly in case of consumer rebalance as there will be no cached dedup shared between consumers within the consumer group.
 
         *dedup_by_value (bool)*
             Deduplicate messages by the Value. The default is False.
             To deduplicate messages by Key and Value, set both dedup_by_key and dedup_by_value as True.
-            This dedup wil not work properly in case of consumer rebalance as there will be no cached dedup between consumers.
+            This dedup wil not work properly in case of consumer rebalance as there will be no cached dedup shared between consumers within the consumer group.
 
         *dedup_max_lru (int)*
             Max Least Recently Used (LRU) cache size. The default is 32768.
