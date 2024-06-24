@@ -93,7 +93,7 @@ def main(args):
         ordering=True,
         max_concurrency=5,
         record_handler=record_handler.postmanEcho,
-        max_queue_lag=16,
+        max_queue_backlog=16,
     )
 
     try:
@@ -135,6 +135,7 @@ def main(args):
         )
         consumer.close(
             graceful_shutdown=True,
+            commit_before_closing=True,
             commit_asynchronous=False,
         )
 

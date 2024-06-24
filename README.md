@@ -28,7 +28,7 @@ Parallel processing:
 - `max_concurrency` (int): Specifies the number of concurrent threads for handling consumed messages. The default is 3.
 - `ordering` (bool): When `True` (default), it hashes the message key, divides it, and assigns it to the corresponding queue/thread to maintain message order. If `False`, it randomly allocates the first message to a queue/thread and uses round-robin allocation for subsequent keys.
 - `record_handler` (function): A function to process messages within each thread, taking a single parameter `msg` as returned from a `consumer.poll` call.
-- `max_queue_lag` (int): Max total queue(s) size, if that number is reached the polling will be automatically paused. The default is 1024.
+- `max_queue_backlog` (int): Max number of unprocessed items in the queue(s), if that number is reached the polling will be automatically paused and wait for the queue to be cleared. The default is 1024.
 
 Deduplicate messages messages within the topic partitions:
 - `dedup_by_key` (bool): Deduplicate messages by the Key. The default is False. To deduplicate messages by Key and Value, set both `dedup_by_key` and `dedup_by_value` as True.
@@ -49,7 +49,7 @@ consumer = PyrallelConsumer(
     ordering=True,
     max_concurrency=10,
     record_handler=record_handler.postmanEcho,
-    max_queue_lag=16,
+    max_queue_backlog=16,
 )
 ```
 
@@ -60,10 +60,11 @@ Using the wrapper class, all the consumer needs to do is to poll Kafka. The queu
 consumer.poll(timeout=0.25)
 ```
 
-At last, upon calling the consumer method `.close()` it will wait all thread queue(s) to be empty, then if `graceful_shutdown` is `True`, it will wait before stop all threads and only then close the consumer group.
+At last, upon calling the consumer method `.close()` as `graceful_shutdown` is set as `True`, it will wait all thread queue(s) to be processed. As additional queued items can be processed the argument `commit_before_closing` is set as `True` so a final commit can be issued before closing the consumer.
 ```Python
 consumer.close(
     graceful_shutdown=True,
+    commit_before_closing=True,
     commit_asynchronous=False,
 )
 ```

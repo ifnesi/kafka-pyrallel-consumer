@@ -4,9 +4,10 @@ import random
 import hashlib
 import logging
 import binascii
+import datetime
 import threading
 
-from confluent_kafka import Consumer
+from confluent_kafka import Consumer, KafkaException
 
 
 def default_handler(msg):
@@ -23,7 +24,7 @@ class PyrallelConsumer(Consumer):
         ordering: bool = True,
         max_concurrency: int = 3,
         record_handler: object = default_handler,
-        max_queue_lag: int = 1024,
+        max_queue_backlog: int = 1024,
         dedup_by_key: bool = False,
         dedup_by_value: bool = False,
         dedup_max_lru: int = 32768,
@@ -56,8 +57,8 @@ class PyrallelConsumer(Consumer):
             A function to process messages within each thread,
             taking a single parameter `msg` as returned from a `consumer.poll` call.
 
-        *max_queue_lag (int)*
-            Max total queue(s) size, if that number is reached the polling will be automatically paused. The default is 1024.
+        *max_queue_backlog (int)*
+            Max number of unprocessed items in the queue(s), if that number is reached the polling will be automatically paused and wait for the queue to be cleared. The default is 1024.
 
         *dedup_by_key (bool)*
             Deduplicate messages by the Key. The default is False.
@@ -66,10 +67,10 @@ class PyrallelConsumer(Consumer):
         *dedup_by_value (bool)*
             Deduplicate messages by the Value. The default is False.
             To deduplicate messages by Key and Value, set both dedup_by_key and dedup_by_value as True.
-        
+
         *dedup_max_lru (int)*
             Max Least Recently Used (LRU) cache size. The default is 32768.
-        
+
         *dedup_algorithm (str)*
             Deduplication algorithm to use.
             Options available are: md5, sha1, sha224, sha256, sha384, sha3_224, sha3_256, sha3_384, sha3_512, sha512.
@@ -79,10 +80,10 @@ class PyrallelConsumer(Consumer):
         super().__init__(*args, **kwargs)
 
         # Set wrapper instance variables
-        self._ordering = (ordering == True)
+        self._ordering = ordering == True
         self._record_handler = record_handler
         self._max_concurrency = max(1, int(max_concurrency))
-        self._max_queue_lag = max(1, max_queue_lag)
+        self._max_queue_lag = max(1, max_queue_backlog)
         self._queue_id = random.randint(0, 999999999)
         self._stop = False
         self._paused = False
@@ -93,8 +94,8 @@ class PyrallelConsumer(Consumer):
         )  # record when the last commit was issued (required ro synchronous commits)
 
         # Dedup check
-        self._dedup_by_key = (dedup_by_key == True)
-        self._dedup_by_value = (dedup_by_value == True)
+        self._dedup_by_key = dedup_by_key == True
+        self._dedup_by_value = dedup_by_value == True
         self._check_for_dedup = self._dedup_by_key or self._dedup_by_value
         if self._check_for_dedup:
             self._dedup_topics = dict()
@@ -133,10 +134,13 @@ class PyrallelConsumer(Consumer):
             logging.info(f"Starting parallel consumer thread #{n}...")
             thread.start()
 
-    def _get_qsize(self):
-        return sum([
-            q.qsize() for q in self._queues
-        ])
+    def _has_reached_max_queue_lag(self):
+        qsize = 0
+        for q in self._queues:
+            qsize += q.qsize()
+            if qsize >= self._max_queue_lag:
+                return True
+        return False
 
     def _processor(
         self,
@@ -176,14 +180,34 @@ class PyrallelConsumer(Consumer):
             # If commit is synchronous (asynchronous = False) it will wait all queues to be empty
             # only then will issue the commit
             for n, queue in enumerate(self._queues):
-                logging.info(
-                    f"Waiting for queue on thread #{n} to be empty before committing..."
-                )
-                while not queue.empty():
-                    pass
+                if not queue.empty:
+                    logging.info(
+                        f"Waiting for queue on thread #{n} to be empty before committing..."
+                    )
+                    while not queue.empty():
+                        pass
 
         # Call original Consumer class method
-        super().commit(*args, **kwargs)
+        logging.info("Committing last offset...")
+        committed = True
+        try:
+            super().commit(*args, **kwargs)
+        except KafkaException as err1:
+            try:
+                if err1.args[0].code() == -168:  # _NO_OFFSET
+                    committed = False
+                else:
+                    logging.warn(err1)
+            except Exception as err1_1:
+                logging.error(err1_1)
+        except Exception as err2:
+            logging.error(err2)
+        finally:
+            if committed:
+                logging.info("Last offset committed!")
+            else:
+                logging.info(f"No need to commit: Last offset already committed at {datetime.datetime.fromtimestamp(self.last_commit_timestamp)}")
+
         self.last_commit_timestamp = time.time()
         self._paused = False
 
@@ -197,9 +221,10 @@ class PyrallelConsumer(Consumer):
         It will poll Kafka and send the message to the corresponding queue/thread
         """
         if not (self._stop or self._paused):
-            q_size = self._get_qsize()
-            if q_size >= self._max_queue_lag:
-                logging.debug(f"Total queue size is {q_size}. Polling is paused as it has reached its maximum lag capacity of {self._max_queue_lag}")
+            if self._has_reached_max_queue_lag():
+                logging.debug(
+                    f"Polling is paused as it has reached the maximum backlog capacity of {self._max_queue_lag} queued items"
+                )
 
             else:
                 # Call original Consumer class method
@@ -217,7 +242,9 @@ class PyrallelConsumer(Consumer):
                             )
                         else:
                             # Round-robin queue/thread allocation (first allocation is random)
-                            self._queue_id = (self._queue_id + 1) % self._max_concurrency
+                            self._queue_id = (
+                                self._queue_id + 1
+                            ) % self._max_concurrency
 
                         # Check for duplicated messages
                         if self._check_for_dedup:
@@ -232,8 +259,12 @@ class PyrallelConsumer(Consumer):
 
                             if seed is not None:
                                 if msg.topic() not in self._dedup_topics:
-                                    self._dedup_topics[msg.topic()] = msg.topic().encode("ascii", "ignore") + b"0"
-                                hash = self._dedup_algorithm(self._dedup_topics[msg.topic()] + seed).hexdigest()
+                                    self._dedup_topics[msg.topic()] = (
+                                        msg.topic().encode("ascii", "ignore") + b"0"
+                                    )
+                                hash = self._dedup_algorithm(
+                                    self._dedup_topics[msg.topic()] + seed
+                                ).hexdigest()
                                 if hash in self._dedup_lru:
                                     # Do not push the message to the queue as it is duplicated
                                     return msg
@@ -254,7 +285,7 @@ class PyrallelConsumer(Consumer):
         self,
         *args,
         graceful_shutdown: bool = True,
-        commit_before_closure: bool = True,
+        commit_before_closing: bool = True,
         commit_asynchronous: bool = False,
         **kwargs,
     ):
@@ -273,11 +304,8 @@ class PyrallelConsumer(Consumer):
                 thread.join()
             logging.info("All parallel consumer threads have been stopped!")
 
-        if commit_before_closure:
-            try:
-                self.commit(asynchronous=commit_asynchronous)
-            except Exception as err:
-                logging.warn(err)
+        if commit_before_closing:
+            self.commit(asynchronous=commit_asynchronous)
 
         # Stop threads and close consumer group by calling original Consumer class method
         super().close(*args, **kwargs)
