@@ -88,9 +88,9 @@ class PyrallelConsumer(Consumer):
         self._stop = False
         self._paused = False
         self.last_msg = None  # record a copy of the last message received
-        self.last_msg_timestamp = -1  # record when the last message was received
+        self.last_msg_timestamp = 0  # record when the last message was received
         self.last_commit_timestamp = (
-            -1
+            0
         )  # record when the last commit was issued (required ro synchronous commits)
 
         # Dedup check
