@@ -116,6 +116,7 @@ def main(args):
                         asynchronous=False,
                     )
                     last_msg_timestamp = consumer.last_msg_timestamp
+
                 # Poll kafka, however it will also have the messages processed as per function set on the `record_handler` argument
                 consumer.poll(timeout=0.25)
 
