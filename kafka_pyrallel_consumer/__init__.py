@@ -82,10 +82,10 @@ class PyrallelConsumer(Consumer):
         super().__init__(*args, **kwargs)
 
         # Set wrapper instance variables
-        self._ordering = ordering == True
+        self._ordering = (ordering == True)
         self._record_handler = record_handler
         self._max_concurrency = max(1, int(max_concurrency))
-        self._max_queue_lag = max(1, max_queue_backlog)
+        self._max_queue_lag = max(1, int(max_queue_backlog))
         self._queue_id = random.randint(0, 999999999)
         self._stop = False
         self._paused = False
@@ -93,12 +93,12 @@ class PyrallelConsumer(Consumer):
         self.last_msg_timestamp = 0  # record when the last message was received
         self.last_commit_timestamp = (
             0
-        )  # record when the last commit was issued (required ro synchronous commits)
+        )  # record when the last commit was issued (required to synchronous commits)
 
         # Dedup check
-        self._dedup_by_key = dedup_by_key == True
-        self._dedup_by_value = dedup_by_value == True
-        self._check_for_dedup = self._dedup_by_key or self._dedup_by_value
+        self._dedup_by_key = (dedup_by_key == True)
+        self._dedup_by_value = (dedup_by_value == True)
+        self._check_for_dedup = (self._dedup_by_key or self._dedup_by_value)
         if self._check_for_dedup:
             self._dedup_topics = dict()
             DEDUP_ALGORITHMS = {
@@ -173,17 +173,16 @@ class PyrallelConsumer(Consumer):
     ):
         """
         Overriding the original consumer poll method
-        if asynchronous is set as False it will wait all queue(s) to be empty before sending the commit
+        if asynchronous is set as False it will wait all queue(s) to be empty before sending the commit.
 
         *pause_poll (bool)*
             It will pause the poll and resumed only after the commit is issued,
-            however that is only applicable if asynchronous is set as False
-            Default value is False
+            Default value is False.
 
         """
+        self._paused = (pause_poll == True)  # when it is paused the poll will be paused until the commit is completed
+
         if not kwargs.get("asynchronous", True):
-            if pause_poll:
-                self._paused = True  # when it is paused the poll will be paused until the commit is completed
             # If commit is synchronous (asynchronous = False) it will wait all queues to be empty
             # only then will issue the commit
             for n, queue in enumerate(self._queues):
@@ -212,10 +211,10 @@ class PyrallelConsumer(Consumer):
         finally:
             if committed:
                 logging.info("Last offset committed!")
+                self.last_commit_timestamp = time.time()
             else:
                 logging.info(f"No need to commit: Last offset already committed at {datetime.datetime.fromtimestamp(self.last_commit_timestamp)}")
 
-        self.last_commit_timestamp = time.time()
         self._paused = False
 
     def poll(
@@ -300,7 +299,13 @@ class PyrallelConsumer(Consumer):
         Overriding the original consumer close method.
 
         *graceful_shutdown (bool)*
-            When `True` (default) it will stop all queues/threads before calling the original consumer close method
+            When `True` (default) it will stop all queues/threads before the consumer leaves the consumer group.
+
+        *commit_before_closing (bool)*
+            When `True` (default) it will commit before the consumer leaves the consumer group.
+
+        *commit_asynchronous (bool)*
+            When `False` (default) it will execute a synchronous commit (only applicable if commit_before_closing is `True`).
         """
         self._stop = True
 
