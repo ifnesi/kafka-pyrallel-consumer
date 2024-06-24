@@ -104,8 +104,9 @@ def main(args):
         last_msg_timestamp = consumer.last_msg_timestamp
         while True:
             try:
-                # Poll kafka, however it will also have the messages processed as per function set on the `record_handler` argument
-                consumer.poll(timeout=0.25)
+                # Perform synchronous commit (to be done before the poll)
+                # In a regular consumer group the decision of when to commit should be made before polling new messages,
+                # as they increase the stored offset that will be committed and we only want to commit once per batch.
                 if (
                     time.time() - consumer.last_commit_timestamp > 5
                 ) and last_msg_timestamp != consumer.last_msg_timestamp:
@@ -114,6 +115,8 @@ def main(args):
                         asynchronous=False,
                     )
                     last_msg_timestamp = consumer.last_msg_timestamp
+                # Poll kafka, however it will also have the messages processed as per function set on the `record_handler` argument
+                consumer.poll(timeout=0.25)
 
             except Exception as err:
                 logging.error(err)
