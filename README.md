@@ -42,7 +42,7 @@ Check the example on `test_parallel_consumer.py`, it imports the wrapper consume
 from kafka_pyrallel_consumer import PyrallelConsumer
 ```
 
-Then when instantiating the consumer using the wrapper library it passes the consumer configuration (as in the standard `Consumer` class), but also the three additional arguments:
+Then when instantiating the consumer using the wrapper library it passes the consumer configuration (as in the standard `Consumer` class), but also the additional arguments:
 ```Python
 consumer = PyrallelConsumer(
     consumer_config,
