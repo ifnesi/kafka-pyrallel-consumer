@@ -347,6 +347,9 @@ It took around 4 seconds:
 - [Introducing the Confluent Parallel Consumer](https://www.confluent.io/en-gb/blog/introducing-confluent-parallel-message-processing-client/)
 - [How to use the Confluent Parallel Consumer](https://developer.confluent.io/tutorials/confluent-parallel-consumer/confluent.html)
 - [Confluent's GitHub Repository for the Java Parallel Consumer](https://github.com/confluentinc/parallel-consumer)
+- [Confluent Platform](https://www.confluent.io/en-gb/product/confluent-platform/)
+- [Confluent Control Center](https://docs.confluent.io/platform/current/control-center/index.html)
+- [confluent_kafka](https://docs.confluent.io/platform/current/clients/confluent-kafka-python/html/index.html) Python library (based on [librdkafka](https://github.com/confluentinc/librdkafka))
 
 Check out [Confluent's Developer portal](https://developer.confluent.io), it has free courses, documents, articles, blogs, podcasts and so many more content to get you up and running with a fully managed Apache Kafka service.
 
