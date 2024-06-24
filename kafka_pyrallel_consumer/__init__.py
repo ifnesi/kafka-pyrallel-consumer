@@ -90,7 +90,7 @@ class PyrallelConsumer(Consumer):
         # Dedup check
         self._dedup_by_key = (dedup_by_key == True)
         self._dedup_by_value = (dedup_by_value == True)
-        self._check_for_dedup = self._dedup_by_key or self._check_for_dedup
+        self._check_for_dedup = self._dedup_by_key or self._dedup_by_value
         if self._check_for_dedup:
             self._dedup_topics = dict()
             DEDUP_ALGORITHMS = {
