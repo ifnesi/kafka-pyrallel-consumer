@@ -47,15 +47,15 @@ Then when instantiating the consumer using the wrapper library it passes the con
 consumer = PyrallelConsumer(
     consumer_config,
     ordering=True,
-    max_concurrency=10,
+    max_concurrency=5,
     record_handler=record_handler.postmanEcho,
     max_queue_backlog=16,
 )
 ```
 
-Where `record_handler.postmanEcho` is the function to handle the consumed messages in parallel. The wrapper consumer class will handle the processing in up to 10 separate threads (as, in this example, `max_concurrency` was set to 10).
+Where `record_handler.postmanEcho` is the function to handle the consumed messages in parallel. The wrapper consumer class will handle the processing in up to 5 separate threads (as, in this example, `max_concurrency` was set to 5).
 
-Using the wrapper class, all the consumer needs to do is to poll Kafka. The queue allocation will be handled by the wrapper and the processing of messages, on its corresponding thread, will be hanlded by the `record_handler` function, as set by teh user.
+Using the wrapper class, all the consumer needs to do is to poll Kafka. The queue allocation will be handled by the wrapper and the processing of messages, on its corresponding thread, will be hanlded by the `record_handler` function, as set by the user.
 ```Python
 consumer.poll(timeout=0.25)
 ```
@@ -70,14 +70,14 @@ consumer.close(
 ```
 
 ## Commit Strategy
-The commit strategy is up to the user to have it defined as the wrapper consumer will not handle that. However with the parallel consumer, upon calling the `commit` class method if the argument `asynchronous` is set as `False`, it will wait all queue(s) to be empty (forcing the poll to be paused), after than it will issue the commit and only then resume the poll. The `commit` method has also an argument called `pause_poll` (default `False`) where it will pause the poll and resumed only after the commit is issued, however that is only applicable if `asynchronous` is set as `False`.
+The commit strategy is up to the user to have it defined as the wrapper consumer will not automatically handle that. However with the parallel consumer, upon calling the `commit` class method if the argument `asynchronous` is set as `False`, it will wait all queue(s) to be empty (forcing the poll to be paused), after than it will issue the commit and only then resume the poll. The `commit` method has also an argument called `pause_poll` (default `False`) where it will pause the poll and resumed only after the commit is issued, however that is only applicable if `asynchronous` is set as `False`.
 
 If you want to implement your own commit strategy, make sure to set `enable.auto.commit` as `False` on your consumer.
 
 The example `test_parallel_consumer.py` has implemented a synchronous commit strategy pausing the polling.
 
 ## Output: `test_parallel_consumer.py`
-Before running the examples below, make sure to have Docker up and running, then run `docker-compose up -d`.
+Before running the examples below, make sure to have Docker up and running, then run `docker-compose up -d` so it can spin a minimal [Confluent Platform](https://www.confluent.io/en-gb/product/confluent-platform/) Kafka cluster up.
 
 Running with one single thread, with ordering and processing 50 messages. Each message will be posted to Postman echo.
 It took around 18 seconds:
