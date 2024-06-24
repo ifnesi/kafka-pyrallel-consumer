@@ -156,7 +156,7 @@ It took around 18 seconds:
 2024-06-23 16:34:24.676 [INFO]: All parallel consumer threads stopped
 ```
 
-Running with five threads, with ordering and processing 50 messages. Each message will be posted to Postman ECHO.
+Running with five threads, with ordering and processing 50 messages. Each message will be posted to Postman echo.
 It took around 6 seconds:
 - First message: 16:37:51.998 
 - Last message:  16:37:57.429
@@ -241,7 +241,7 @@ It took around 6 seconds:
 2024-06-23 16:38:00.190 [INFO]: All parallel consumer threads stopped
 ```
 
-Running with five threads, without ordering and processing 50 messages. Each message will be posted to Postman ECHO.
+Running with five threads, without ordering and processing 50 messages. Each message will be posted to Postman echo.
 It took around 4 seconds:
 - First message: 16:42:11.800 
 - Last message:  16:42:15.601
