@@ -81,7 +81,7 @@ Before running the examples below, make sure to have Docker up and running, then
 
 The `test_parallel_consumer.py` python script will run a parallel consumer over the Kafka topic `demo_parallel_consumer`, here is an example of a message:
 ```
-Key = 09
+Key   = 09
 Value = {
   "payload": "cad4f3486f2d41e895945afbaf47f9ac",
   "timestamp": 1719246245722
