@@ -136,12 +136,15 @@ class PyrallelConsumer(Consumer):
             logging.info(f"Starting parallel consumer thread #{n}...")
             thread.start()
 
-    def _has_reached_max_queue_lag(self):
+    def _has_reached_max_queue_backlog(self) -> bool:
+        """
+        Check whether queue(s) has reached the max_queue_backlog
+        """
         qsize = 0
         for q in self._queues:
             qsize += q.qsize()
             if qsize >= self._max_queue_lag:
-                return True
+                return True  # no need to continue
         return False
 
     def _processor(
@@ -149,16 +152,18 @@ class PyrallelConsumer(Consumer):
         n: int,
     ):
         """
-        Execute the record_handler under each thread!
+        Run the record_handler under each thread!
         """
         while True:
-            is_empty = self._queues[n].empty()
-            if is_empty and self._stop:
-                logging.info(f"Stopped consumer thread #{n}")
-                break
-            elif not is_empty:
+            if not self._queues[n].empty():
                 msg = self._queues[n].get()
                 self._record_handler(msg)
+            elif self._stop:
+                logging.info(f"Stopped consumer thread #{n}")
+                break
+            else:
+                # In case queue is empty wait 5ms before checking it again
+                time.sleep(0.005)
 
     def commit(
         self,
@@ -223,7 +228,7 @@ class PyrallelConsumer(Consumer):
         It will poll Kafka and send the message to the corresponding queue/thread
         """
         if not (self._stop or self._paused):
-            if self._has_reached_max_queue_lag():
+            if self._has_reached_max_queue_backlog():
                 logging.debug(
                     f"Polling is paused as it has reached the maximum backlog capacity of {self._max_queue_lag} queued items"
                 )
