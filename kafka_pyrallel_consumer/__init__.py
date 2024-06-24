@@ -58,7 +58,9 @@ class PyrallelConsumer(Consumer):
             taking a single parameter `msg` as returned from a `consumer.poll` call.
 
         *max_queue_backlog (int)*
-            Max number of unprocessed items in the queue(s), if that number is reached the polling will be automatically paused and wait for the queue to be cleared. The default is 1024.
+            Max number of unprocessed items in the queue(s),
+            if that number is reached the polling will be automatically paused and wait for the queue to be cleared.
+            The default is 1024.
 
         *dedup_by_key (bool)*
             Deduplicate messages by the Key. The default is False.
