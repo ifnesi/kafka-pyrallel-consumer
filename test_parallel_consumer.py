@@ -93,6 +93,7 @@ def main(args):
         ordering=True,
         max_concurrency=5,
         record_handler=record_handler.postmanEcho,
+        max_queue_lag=16,
     )
 
     try:
@@ -121,18 +122,21 @@ def main(args):
             except Exception as err:
                 logging.error(err)
 
-    except KeyboardInterrupt:
-        logging.info("CTRL-C pressed by user!")
+            except KeyboardInterrupt:
+                logging.info("CTRL-C pressed by user!")
+                break
+
+    except Exception as err:
+        logging.error(err)
 
     finally:
-        try:
-            consumer.commit(asynchronous=False)
-        except Exception as err:
-            logging.error(err)
         logging.info(
             f"Closing consumer {consumer_config['client.id']} ({consumer_config['group.id']})"
         )
-        consumer.close()
+        consumer.close(
+            graceful_shutdown=True,
+            commit_asynchronous=False,
+        )
 
 
 if __name__ == "__main__":

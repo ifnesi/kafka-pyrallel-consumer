@@ -23,6 +23,7 @@ class PyrallelConsumer(Consumer):
         ordering: bool = True,
         max_concurrency: int = 3,
         record_handler: object = default_handler,
+        max_queue_lag: int = 1024,
         dedup_by_key: bool = False,
         dedup_by_value: bool = False,
         dedup_max_lru: int = 32768,
@@ -55,6 +56,9 @@ class PyrallelConsumer(Consumer):
             A function to process messages within each thread,
             taking a single parameter `msg` as returned from a `consumer.poll` call.
 
+        *max_queue_lag (int)*
+            Max total queue(s) size, if that number is reached the polling will be automatically paused. The default is 1024.
+
         *dedup_by_key (bool)*
             Deduplicate messages by the Key. The default is False.
             To deduplicate messages by Key and Value, set both dedup_by_key and dedup_by_value as True.
@@ -78,6 +82,7 @@ class PyrallelConsumer(Consumer):
         self._ordering = (ordering == True)
         self._record_handler = record_handler
         self._max_concurrency = max(1, int(max_concurrency))
+        self._max_queue_lag = max(1, max_queue_lag)
         self._queue_id = random.randint(0, 999999999)
         self._stop = False
         self._paused = False
@@ -121,11 +126,17 @@ class PyrallelConsumer(Consumer):
                 threading.Thread(
                     target=self._processor,
                     args=(n,),
+                    daemon=False,
                 )
             )
         for n, thread in enumerate(self._threads):
             logging.info(f"Starting parallel consumer thread #{n}...")
             thread.start()
+
+    def _get_qsize(self):
+        return sum([
+            q.qsize() for q in self._queues
+        ])
 
     def _processor(
         self,
@@ -186,69 +197,87 @@ class PyrallelConsumer(Consumer):
         It will poll Kafka and send the message to the corresponding queue/thread
         """
         if not (self._stop or self._paused):
-            # Call original Consumer class method
-            msg = super().poll(*args, **kwargs)
+            q_size = self._get_qsize()
+            if q_size >= self._max_queue_lag:
+                logging.debug(f"Total queue size is {q_size}. Polling is paused as it has reached its maximum lag capacity of {self._max_queue_lag}")
 
-            # Send message to the corresponding queue/thread
-            if msg is not None:
+            else:
+                # Call original Consumer class method
+                msg = super().poll(*args, **kwargs)
 
-                if not msg.error():
+                # Send message to the corresponding queue/thread
+                if msg is not None:
 
-                    if self._ordering and msg.key() is not None:
-                        # CRC32 hash the key and mod divide by the number of queues/threads
-                        self._queue_id = (
-                            binascii.crc32(msg.key()) % self._max_concurrency
-                        )
-                    else:
-                        # Round-robin queue/thread allocation (first allocation is random)
-                        self._queue_id = (self._queue_id + 1) % self._max_concurrency
+                    if not msg.error():
 
-                    # Check for duplicated messages
-                    if self._check_for_dedup:
-                        if self._dedup_by_key and self._dedup_by_value:
-                            seed = (msg.key() or b"") + b"0" + (msg.value() or b"")
-                        elif self._dedup_by_key:
-                            seed = msg.key() or b""
-                        elif self._dedup_by_value:
-                            seed = msg.value() or b""
+                        if self._ordering and msg.key() is not None:
+                            # CRC32 hash the key and mod divide by the number of queues/threads
+                            self._queue_id = (
+                                binascii.crc32(msg.key()) % self._max_concurrency
+                            )
                         else:
-                            seed = None
+                            # Round-robin queue/thread allocation (first allocation is random)
+                            self._queue_id = (self._queue_id + 1) % self._max_concurrency
 
-                        if seed is not None:
-                            if msg.topic() not in self._dedup_topics:
-                                self._dedup_topics[msg.topic()] = msg.topic().encode("ascii", "ignore") + b"0"
-                            hash = self._dedup_algorithm(self._dedup_topics[msg.topic()] + seed).hexdigest()
-                            if hash in self._dedup_lru:
-                                # Do not push the message to the queue as it is duplicated
-                                return msg
+                        # Check for duplicated messages
+                        if self._check_for_dedup:
+                            if self._dedup_by_key and self._dedup_by_value:
+                                seed = (msg.key() or b"") + b"0" + (msg.value() or b"")
+                            elif self._dedup_by_key:
+                                seed = msg.key() or b""
+                            elif self._dedup_by_value:
+                                seed = msg.value() or b""
                             else:
-                                # Not a duplicated message, append to the LRU
-                                if len(self._dedup_lru) >= self._dedup_max_lru:
-                                    self._dedup_lru.pop(0)
-                                self._dedup_lru.append(hash)
+                                seed = None
 
-                    # Push message to the queue (if not duplicated or dedup check is not required)
-                    self._queues[self._queue_id].put(msg)
-                    self.last_msg = msg
-                    self.last_msg_timestamp = msg.timestamp()
+                            if seed is not None:
+                                if msg.topic() not in self._dedup_topics:
+                                    self._dedup_topics[msg.topic()] = msg.topic().encode("ascii", "ignore") + b"0"
+                                hash = self._dedup_algorithm(self._dedup_topics[msg.topic()] + seed).hexdigest()
+                                if hash in self._dedup_lru:
+                                    # Do not push the message to the queue as it is duplicated
+                                    return msg
+                                else:
+                                    # Not a duplicated message, append to the LRU
+                                    if len(self._dedup_lru) >= self._dedup_max_lru:
+                                        self._dedup_lru.pop(0)
+                                    self._dedup_lru.append(hash)
 
-            return msg
+                        # Push message to the queue (if not duplicated or dedup check is not required)
+                        self._queues[self._queue_id].put(msg)
+                        self.last_msg = msg
+                        self.last_msg_timestamp = msg.timestamp()
+
+                return msg
 
     def close(
         self,
         *args,
+        graceful_shutdown: bool = True,
+        commit_before_closure: bool = True,
+        commit_asynchronous: bool = False,
         **kwargs,
     ):
         """
         Overriding the original consumer close method.
-        It will stop all queues/threads and only then call the close original method
+
+        *graceful_shutdown (bool)*
+            When `True` (default) it will stop all queues/threads before calling the original consumer close method
         """
-        # Send signal to stop threads (it will do so once all queues are empty)
-        logging.info("Stopping all parallel consumer threads...")
         self._stop = True
-        for thread in self._threads:
-            thread.join()
-        logging.info("All parallel consumer threads have been stopped!")
+
+        if graceful_shutdown:
+            # Send signal to stop threads (it will do so once all queues are empty)
+            logging.info("Stopping all parallel consumer threads...")
+            for thread in self._threads:
+                thread.join()
+            logging.info("All parallel consumer threads have been stopped!")
+
+        if commit_before_closure:
+            try:
+                self.commit(asynchronous=commit_asynchronous)
+            except Exception as err:
+                logging.warn(err)
 
         # Stop threads and close consumer group by calling original Consumer class method
         super().close(*args, **kwargs)
