@@ -1,6 +1,7 @@
 import time
 import queue
 import random
+import hashlib
 import logging
 import binascii
 import threading
@@ -22,26 +23,53 @@ class PyrallelConsumer(Consumer):
         ordering: bool = True,
         max_concurrency: int = 3,
         record_handler: object = default_handler,
+        dedup_by_key: bool = False,
+        dedup_by_value: bool = False,
+        dedup_max_lru: int = 32768,
+        dedup_algorithm: str = "sha256",
         **kwargs,
     ):
         """
-        This a wrapper around the Python Consumer class (confluent_kafka Python lib) called PyrallelConsumer.
-        It works similarly to the standard Consumer class, however it takes three additional (optional) parameters:
+        This a wrapper around the Python `Consumer` class (`confluent_kafka` Python lib), called `PyrallelConsumer`.
+
+        This wrapper class provides a way to process Kafka messages in parallel, improving efficiency and speed.
+        It enables fine-grained control over parallelism beyond the default partition-level in Kafka,
+        allowing key-level and message-level parallelism.
+        This helps in handling fixed partition counts, integrating with slow databases or services, and
+        managing queue-like message processing more effectively.
+        The class is designed to optimise performance without requiring extensive changes to your existing Kafka setup.
+        It also has the capability to deduplicate messages within the topic partitions it is currently consuming from.
+
+        It works similarly to the standard `Consumer` class but with additional optional parameters:
 
         *max_concurrency (int)*
-            Number of concurrent threads to handle the consumed messages, default is 3
+            Specifies the number of concurrent threads for handling consumed messages. The default is 3.
 
         *ordering (bool)*
-            If set to True (default) it will partition the message key (CRC32) and
-            send to the corresponding thread, so it can guarantee message order
-            meaning, same queue will always process the same message key (within the sdame partition)
-            If set to False, it will randomly allocate the first key to one of the threads then
-            the subsequent keys will be allocated in a round-robin fashion
+            When `True` (default), it hashes the message key, divides it, and assigns it to the
+            corresponding queue/thread to maintain message order.
+            If `False`, it randomly allocates the first message to a queue/thread and
+            uses round-robin allocation for subsequent keys.
 
         *record_handler (function)*
-            Function to process the messages within each thread
-            It takes only the parameter `msg` (as returned from a consumer.poll call)
+            A function to process messages within each thread,
+            taking a single parameter `msg` as returned from a `consumer.poll` call.
 
+        *dedup_by_key (bool)*
+            Deduplicate messages by the Key. The default is False.
+            To deduplicate messages by Key and Value, set both dedup_by_key and dedup_by_value as True.
+
+        *dedup_by_value (bool)*
+            Deduplicate messages by the Value. The default is False.
+            To deduplicate messages by Key and Value, set both dedup_by_key and dedup_by_value as True.
+        
+        *dedup_max_lru (int)*
+            Max Least Recently Used (LRU) cache size. The default is 32768.
+        
+        *dedup_algorithm (str)*
+            Deduplication algorithm to use.
+            Options available are: md5, sha1, sha224, sha256, sha384, sha3_224, sha3_256, sha3_384, sha3_512, sha512.
+            The default is sha256.
         """
         # Call original Consumer class method
         super().__init__(*args, **kwargs)
@@ -58,6 +86,31 @@ class PyrallelConsumer(Consumer):
         self.last_commit_timestamp = (
             -1
         )  # record when the last commit was issued (required ro synchronous commits)
+
+        # Dedup check
+        self._dedup_by_key = (dedup_by_key == True)
+        self._dedup_by_value = (dedup_by_value == True)
+        self._check_for_dedup = self._dedup_by_key or self._check_for_dedup
+        if self._check_for_dedup:
+            self._dedup_topics = dict()
+            DEDUP_ALGORITHMS = {
+                "md5": hashlib.md5,
+                "sha1": hashlib.sha1,
+                "sha224": hashlib.sha224,
+                "sha256": hashlib.sha256,
+                "sha384": hashlib.sha384,
+                "sha512": hashlib.sha512,
+                "sha3_224": hashlib.sha3_224,
+                "sha3_256": hashlib.sha3_256,
+                "sha3_384": hashlib.sha3_384,
+                "sha3_512": hashlib.sha3_512,
+            }
+            self._dedup_max_lru = max(1, dedup_max_lru)
+            self._dedup_lru = list()
+            self._dedup_algorithm = DEDUP_ALGORITHMS.get(dedup_algorithm)
+            if self._dedup_algorithm is None:
+                error_message = f"Invalid dedup_algorithm '{dedup_algorithm}'. Valid options are: {', '.join(DEDUP_ALGORITHMS.keys())}"
+                raise ValueError(error_message)
 
         # Create consumer queues and start consumer threads
         self._queues = list()
@@ -150,6 +203,31 @@ class PyrallelConsumer(Consumer):
                         # Round-robin queue/thread allocation (first allocation is random)
                         self._queue_id = (self._queue_id + 1) % self._max_concurrency
 
+                    # Check for duplicated messages
+                    if self._check_for_dedup:
+                        if self._dedup_by_key and self._dedup_by_value:
+                            seed = (msg.key() or b"") + b"0" + (msg.value() or b"")
+                        elif self._dedup_by_key:
+                            seed = msg.key() or b""
+                        elif self._dedup_by_value:
+                            seed = msg.value() or b""
+                        else:
+                            seed = None
+
+                        if seed is not None:
+                            if msg.topic() not in self._dedup_topics:
+                                self._dedup_topics[msg.topic()] = msg.topic().encode("ascii", "ignore") + b"0"
+                            hash = self._dedup_algorithm(self._dedup_topics[msg.topic()] + seed).hexdigest()
+                            if hash in self._dedup_lru:
+                                # Do not push the message to the queue as it is duplicated
+                                return msg
+                            else:
+                                # Not a duplicated message, append to the LRU
+                                if len(self._dedup_lru) >= self._dedup_max_lru:
+                                    self._dedup_lru.pop(0)
+                                self._dedup_lru.append(hash)
+
+                    # Push message to the queue (if not duplicated or dedup check is not required)
                     self._queues[self._queue_id].put(msg)
                     self.last_msg = msg
                     self.last_msg_timestamp = msg.timestamp()

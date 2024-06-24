@@ -1,7 +1,7 @@
 # kafka-pyrallel-consumer
-Parallel Consumer for Kafka, based on Python's `confluent_kafka` lib
+Parallel Consumer for Kafka, based on Python's `confluent_kafka` lib.
 
-## Requirements:
+## Requirements
 - Docker
 - Python 3.8+
 - Install python requirements (`python3 -m pip install -r requirements.txt`)
@@ -9,12 +9,33 @@ Parallel Consumer for Kafka, based on Python's `confluent_kafka` lib
 ## Pending
 - Create python package
 
-## How it works
-This a wrapper around the Python `Consumer` class (`confluent_kafka` Python lib). It works similarly to the standard `Consumer` class, however it takes three additional (optional) parameters:
-- `max_concurrency` (int): Number of concurrent threads to handle the consumed messages, default is 3.
-- `ordering` (bool): If set to `True` (default) it will hash the message key (CRC32), mod divide it and send to the corresponding queue/thread, so it can guarantee message order, meaning, same key (within the same topic partition) will always be processed the same queue/thread. If set to `False`, it will randomly allocate the first message to one of the queues/threads then the subsequent keys will be allocated in a round-robin fashion.
-- `record_handler` (function): Function to process the messages within each thread. It takes only one parameter `msg` (as returned from a `consumer.poll` call).
+## What is it?
+This a wrapper around the Python `Consumer` class (`confluent_kafka` Python lib), called `PyrallelConsumer`.
 
+This wrapper class provides a way to process Kafka messages in parallel, improving efficiency and speed. It enables fine-grained control over parallelism beyond the default partition-level in Kafka, allowing key-level and message-level parallelism. This helps in handling fixed partition counts, integrating with slow databases or services, and managing queue-like message processing more effectively. The class is designed to optimise performance without requiring extensive changes to your existing Kafka setup.
+
+It also has the capability to deduplicate messages within the topic partitions it is currently consuming from.
+
+To learn more about Parallel Consumers, check out the resources below (Java language):
+- [Introducing the Confluent Parallel Consumer](https://www.confluent.io/en-gb/blog/introducing-confluent-parallel-message-processing-client/)
+- [How to use the Confluent Parallel Consumer](https://developer.confluent.io/tutorials/confluent-parallel-consumer/confluent.html)
+- [Confluent's GitHub Repository for the Java Parallel Consumer](https://github.com/confluentinc/parallel-consumer)
+
+## How the wrapper works?
+This class functions similarly to the standard `Consumer` class but with additional optional parameters:
+
+Parallel processing:
+- `max_concurrency` (int): Specifies the number of concurrent threads for handling consumed messages. The default is 3.
+- `ordering` (bool): When `True` (default), it hashes the message key, divides it, and assigns it to the corresponding queue/thread to maintain message order. If `False`, it randomly allocates the first message to a queue/thread and uses round-robin allocation for subsequent keys.
+- `record_handler` (function): A function to process messages within each thread, taking a single parameter `msg` as returned from a `consumer.poll` call.
+
+Deduplicate messages messages within the topic partitions:
+- `dedup_by_key` (bool): Deduplicate messages by the Key. The default is False. To deduplicate messages by Key and Value, set both `dedup_by_key` and `dedup_by_value` as True.
+- `dedup_by_value` (bool): Deduplicate messages by the Value. The default is False. To deduplicate messages by Key and Value, set both `dedup_by_key` and `dedup_by_value` as True.
+- `dedup_max_lru` (int): Max Least Recently Used (LRU) cache size. The default is 32768.
+- `dedup_algorithm` (str): Deduplication algorithm to use. Options available are: `md5`, `sha1`, `sha224`, `sha256`, `sha384`, `sha3_224`, `sha3_256`, `sha3_384`, `sha3_512`, `sha512`. The default is `sha256`.
+
+## Example; test_parallel_consumer.py
 Check the example on `test_parallel_consumer.py`, it imports the wrapper consumer library:
 ```Python
 from kafka_pyrallel_consumer import PyrallelConsumer
@@ -30,9 +51,9 @@ consumer = PyrallelConsumer(
 )
 ```
 
-Where `record_handler.postmanEcho` is the function to handle the consumed messages in parallel. The wrapper consumer class will handle the processing in up to 10 separate threads (in this example as `max_concurrency` was set as 10).
+Where `record_handler.postmanEcho` is the function to handle the consumed messages in parallel. The wrapper consumer class will handle the processing in up to 10 separate threads (as, in this example, `max_concurrency` was set to 10).
 
-Using the wrapper class, all the consumer needs to do is to poll Kafka:
+Using the wrapper class, all the consumer needs to do is to poll Kafka. The queue allocation will be handled by the wrapper and the processing of messages, on its corresponding thread, will be hanlded by the `record_handler` function, as set by teh user.
 ```Python
 consumer.poll(timeout=0.25)
 ```
@@ -49,7 +70,7 @@ If you want to implement your own commit strategy, make sure to set `enable.auto
 
 The example `test_parallel_consumer.py` has implemented a synchronous commit strategy pausing the polling.
 
-## Examples
+## Output: test_parallel_consumer.py
 Before running the examples below, make sure to have Docker up and running, then run `docker-compose up -d`.
 
 Running with one single thread, with ordering and processing 50 messages. Each message will be posted to Postman echo.
@@ -299,10 +320,10 @@ It took around 4 seconds:
 2024-06-23 16:42:18.600 [INFO]: All parallel consumer threads stopped
 ```
 
-
 # External References
 - [Introducing the Confluent Parallel Consumer](https://www.confluent.io/en-gb/blog/introducing-confluent-parallel-message-processing-client/)
 - [How to use the Confluent Parallel Consumer](https://developer.confluent.io/tutorials/confluent-parallel-consumer/confluent.html)
+- [Confluent's GitHub Repository for the Java Parallel Consumer](https://github.com/confluentinc/parallel-consumer)
 
 Check out [Confluent's Developer portal](https://developer.confluent.io), it has free courses, documents, articles, blogs, podcasts and so many more content to get you up and running with a fully managed Apache Kafka service.
 
