@@ -35,7 +35,7 @@ Deduplicate messages messages within the topic partitions:
 - `dedup_max_lru` (int): Max Least Recently Used (LRU) cache size. The default is 32768.
 - `dedup_algorithm` (str): Deduplication algorithm to use. Options available are: `md5`, `sha1`, `sha224`, `sha256`, `sha384`, `sha3_224`, `sha3_256`, `sha3_384`, `sha3_512`, `sha512`. The default is `sha256`.
 
-## Example; test_parallel_consumer.py
+## Example: `test_parallel_consumer.py`
 Check the example on `test_parallel_consumer.py`, it imports the wrapper consumer library:
 ```Python
 from kafka_pyrallel_consumer import PyrallelConsumer
@@ -70,7 +70,7 @@ If you want to implement your own commit strategy, make sure to set `enable.auto
 
 The example `test_parallel_consumer.py` has implemented a synchronous commit strategy pausing the polling.
 
-## Output: test_parallel_consumer.py
+## Output: `test_parallel_consumer.py`
 Before running the examples below, make sure to have Docker up and running, then run `docker-compose up -d`.
 
 Running with one single thread, with ordering and processing 50 messages. Each message will be posted to Postman echo.
