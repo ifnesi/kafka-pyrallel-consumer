@@ -31,7 +31,7 @@ class DedupIgnore(DedupBase):
         return False
 
 
-class DedupDefault(DedupBase):
+class DedupLocalLRUCache(DedupBase):
     def __init__(
         self,
         dedup_by_key: bool = False,

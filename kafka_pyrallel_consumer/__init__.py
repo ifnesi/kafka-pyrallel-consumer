@@ -80,8 +80,9 @@ class PyrallelConsumer(Consumer):
 
         *dedup (class instance)*
             Instance of class to do the message deduplication. You can set any class instance here,
-            however it must have at least a method called `is_message_duplicate` where its only argument is the Kafka polled message object.
-            See example on the class `DedupDefault` (`kafka_pyrallel_consumer/dedup.py`) where it will use an in-memory LRU cache.
+            however it must be an abstract class of `DedupBase` where it need to have at least one
+            method called `is_message_duplicate` and its only argument is the Kafka polled message object (msg).
+            See example on the class `DedupLocalLRUCache` (`kafka_pyrallel_consumer/dedup.py`) where it will use an in-memory LRU cache.
             This parameter is optional and if not set will not dedup any message.
         """
         # Call original Consumer class method
