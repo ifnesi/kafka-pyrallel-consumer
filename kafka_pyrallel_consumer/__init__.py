@@ -1,13 +1,31 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+#
+# Copyright 2020 Confluent Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 import time
 import queue
 import random
-import hashlib
 import logging
 import binascii
 import datetime
 import threading
 
 from confluent_kafka import Consumer, KafkaException
+
+from kafka_pyrallel_consumer.dedup import DoNotDedup
 
 
 def default_handler(msg):
@@ -25,10 +43,7 @@ class PyrallelConsumer(Consumer):
         max_concurrency: int = 3,
         record_handler: object = default_handler,
         max_queue_backlog: int = 1024,
-        dedup_by_key: bool = False,
-        dedup_by_value: bool = False,
-        dedup_max_lru: int = 32768,
-        dedup_algorithm: str = "sha256",
+        dedup: object = None,
         **kwargs,
     ):
         """
@@ -62,29 +77,17 @@ class PyrallelConsumer(Consumer):
             if that number is reached the polling will be automatically paused and wait for the queue to be cleared.
             The default is 1024.
 
-        *dedup_by_key (bool)*
-            Deduplicate messages by the Key. The default is `False`.
-            To deduplicate messages by Key and Value, set both dedup_by_key and dedup_by_value as True.
-            This dedup wil not work properly in case of consumer rebalance as there will be no cached dedup shared between consumers within the consumer group.
-
-        *dedup_by_value (bool)*
-            Deduplicate messages by the Value. The default is `False`.
-            To deduplicate messages by Key and Value, set both dedup_by_key and dedup_by_value as True.
-            This dedup wil not work properly in case of consumer rebalance as there will be no cached dedup shared between consumers within the consumer group.
-
-        *dedup_max_lru (int)*
-            Max Least Recently Used (LRU) cache size. The default is 32768.
-
-        *dedup_algorithm (str)*
-            Deduplication hashing algorithm to use.
-            Options available are: `md5`, `sha1`, `sha224`, `sha256` (default), `sha384`, `sha512`, `sha3_224`, `sha3_256`, `sha3_384`, `sha3_512`.
-            To reduce memory footprint, the cached dedup will be a hash of the Key/Value other than the actual data.
+        *dedup (class instance)*
+            Instance of class to do the message deduplication. You can set any class instance here,
+            however it must have at least a method called `is_message_duplicate` where its only argument is the Kafka polled message object.
+            See example on the class DedupDefault (kafka_pyrallel_consumer/dedup.py) where it will use an in-memory LRU cache.
+            This parameter is optional and if not set will not dedup any message.
         """
         # Call original Consumer class method
         super().__init__(*args, **kwargs)
 
         # Set wrapper instance variables
-        self._ordering = (ordering == True)
+        self._ordering = ordering == True
         self._record_handler = record_handler
         self._max_concurrency = max(1, int(max_concurrency))
         self._max_queue_lag = max(1, int(max_queue_backlog))
@@ -93,34 +96,12 @@ class PyrallelConsumer(Consumer):
         self._paused = False
         self.last_msg = None  # record a copy of the last message received
         self.last_msg_timestamp = 0  # record when the last message was received
-        self.last_commit_timestamp = (
-            0
-        )  # record when the last commit was issued (required to synchronous commits)
+        self.last_commit_timestamp = 0  # record when the last commit was issued (required to synchronous commits)
 
-        # Dedup check
-        self._dedup_by_key = (dedup_by_key == True)
-        self._dedup_by_value = (dedup_by_value == True)
-        self._check_for_dedup = (self._dedup_by_key or self._dedup_by_value)
-        if self._check_for_dedup:
-            self._dedup_topics = dict()
-            DEDUP_ALGORITHMS = {
-                "md5": hashlib.md5,
-                "sha1": hashlib.sha1,
-                "sha224": hashlib.sha224,
-                "sha256": hashlib.sha256,
-                "sha384": hashlib.sha384,
-                "sha512": hashlib.sha512,
-                "sha3_224": hashlib.sha3_224,
-                "sha3_256": hashlib.sha3_256,
-                "sha3_384": hashlib.sha3_384,
-                "sha3_512": hashlib.sha3_512,
-            }
-            self._dedup_max_lru = max(1, dedup_max_lru)
-            self._dedup_lru = list()
-            self._dedup_algorithm = DEDUP_ALGORITHMS.get(dedup_algorithm)
-            if self._dedup_algorithm is None:
-                error_message = f"Invalid dedup_algorithm '{dedup_algorithm}'. Valid options are: {', '.join(DEDUP_ALGORITHMS.keys())}"
-                raise ValueError(error_message)
+        if dedup is None:
+            self._dedup = DoNotDedup()
+        else:
+            self._dedup = dedup
 
         # Create consumer queues and start consumer threads
         self._queues = list()
@@ -182,7 +163,9 @@ class PyrallelConsumer(Consumer):
             Default value is False.
 
         """
-        self._paused = (pause_poll == True)  # when it is paused the poll will be paused until the commit is completed
+        self._paused = (
+            pause_poll == True
+        )  # when it is paused the poll will be paused until the commit is completed
 
         if not kwargs.get("asynchronous", True):
             # If commit is synchronous (asynchronous = False) it will wait all queues to be empty
@@ -215,7 +198,9 @@ class PyrallelConsumer(Consumer):
                 logging.info("Last offset committed!")
                 self.last_commit_timestamp = time.time()
             else:
-                logging.info(f"No need to commit: Last offset already committed at {datetime.datetime.fromtimestamp(self.last_commit_timestamp)}")
+                logging.info(
+                    f"No need to commit: Last offset already committed at {datetime.datetime.fromtimestamp(self.last_commit_timestamp)}"
+                )
 
         self._paused = False
 
@@ -255,37 +240,11 @@ class PyrallelConsumer(Consumer):
                             ) % self._max_concurrency
 
                         # Check for duplicated messages
-                        if self._check_for_dedup:
-                            if self._dedup_by_key and self._dedup_by_value:
-                                seed = (msg.key() or b"") + b"0" + (msg.value() or b"")
-                            elif self._dedup_by_key:
-                                seed = msg.key() or b""
-                            elif self._dedup_by_value:
-                                seed = msg.value() or b""
-                            else:
-                                seed = None
-
-                            if seed is not None:
-                                if msg.topic() not in self._dedup_topics:
-                                    self._dedup_topics[msg.topic()] = (
-                                        msg.topic().encode("ascii", "ignore") + b"0"
-                                    )
-                                hash = self._dedup_algorithm(
-                                    self._dedup_topics[msg.topic()] + seed
-                                ).hexdigest()
-                                if hash in self._dedup_lru:
-                                    # Do not push the message to the queue as it is duplicated
-                                    return msg
-                                else:
-                                    # Not a duplicated message, append to the LRU
-                                    if len(self._dedup_lru) >= self._dedup_max_lru:
-                                        self._dedup_lru.pop(0)
-                                    self._dedup_lru.append(hash)
-
-                        # Push message to the queue (if not duplicated or dedup check is not required)
-                        self._queues[self._queue_id].put(msg)
-                        self.last_msg = msg
-                        self.last_msg_timestamp = msg.timestamp()
+                        if not self._dedup.is_message_duplicate(msg):
+                            # Push message to the queue (if not duplicated or dedup check is not required)
+                            self._queues[self._queue_id].put(msg)
+                            self.last_msg = msg
+                            self.last_msg_timestamp = msg.timestamp()
 
                 return msg
 

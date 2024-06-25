@@ -29,12 +29,11 @@ Parallel processing:
 - `ordering` (bool): When `True` (default), it hashes the message key, divides it, and assigns it to the corresponding queue/thread to maintain message order. If `False`, it randomly allocates the first message to a queue/thread and uses round-robin allocation for subsequent keys.
 - `record_handler` (function): A function to process messages within each thread, taking a single parameter `msg` as returned from a `consumer.poll` call.
 - `max_queue_backlog` (int): Max number of unprocessed items in the queue(s), if that number is reached the polling will be automatically paused and wait for the queue to be cleared. The default is 1024.
-
-Deduplicate messages messages within the topic partitions:
-- `dedup_by_key` (bool): Deduplicate messages by the Key. The default is `False`. To deduplicate messages by Key and Value, set both `dedup_by_key` and `dedup_by_value` as `True`. This dedup wil not work properly in case of consumer rebalance as there will be no cached dedup shared between consumers within the consumer group.
-- `dedup_by_value` (bool): Deduplicate messages by the Value. The default is `False`. To deduplicate messages by Key and Value, set both `dedup_by_key` and `dedup_by_value` as `True`. This dedup wil not work properly in case of consumer rebalance as there will be no cached dedup shared between consumers within the consumer group.
-- `dedup_max_lru` (int): Max Least Recently Used (LRU) cache size. The default is 32768.
-- `dedup_algorithm` (str): Deduplication hashing algorithm to use. Options available are: `md5`, `sha1`, `sha224`, `sha256` (default), `sha384`, `sha512`, `sha3_224`, `sha3_256`, `sha3_384`, `sha3_512`. To reduce memory footprint, the cached dedup will be a hash of the Key/Value other than the actual data.
+- `dedup`: Deduplicate messages. Instance of class to do the message deduplication. You can set any class instance here, however it must have at least one method called `is_message_duplicate` where its only argument is the Kafka polled message object. See example on the class `DedupDefault` (`kafka_pyrallel_consumer/dedup.p`y) where it will use an in-memory LRU cache. This parameter is optional and if not set will not dedup any message. The arguments taken by `DedupDefault`, are:
+  - `dedup_by_key` (bool): Deduplicate messages by the Key. The default is `False`. To deduplicate messages by Key and Value, set both `dedup_by_key` and `dedup_by_value` as `True`. This dedup wil not work properly in case of consumer rebalance as there will be no cached dedup shared between consumers within the consumer group.
+  - `dedup_by_value` (bool): Deduplicate messages by the Value. The default is `False`. To deduplicate messages by Key and Value, set both `dedup_by_key` and `dedup_by_value` as `True`. This dedup wil not work properly in case of consumer rebalance as there will be no cached dedup shared between consumers within the consumer group.
+  - `dedup_max_lru` (int): Max Least Recently Used (LRU) cache size. The default is 32768.
+  - `dedup_algorithm` (str): Deduplication hashing algorithm to use. Options available are: `md5`, `sha1`, `sha224`, `sha256` (default), `sha384`, `sha512`, `sha3_224`, `sha3_256`, `sha3_384`, `sha3_512`. To reduce memory footprint, the cached dedup will be a hash of the Key/Value other than the actual data.
 
 ## Example: `test_parallel_consumer.py`
 Check the example on `test_parallel_consumer.py`, it imports the wrapper consumer library:
@@ -45,11 +44,17 @@ from kafka_pyrallel_consumer import PyrallelConsumer
 Then when instantiating the consumer using the wrapper library it passes the consumer configuration (as in the standard `Consumer` class), but also the additional arguments:
 ```Python
 consumer = PyrallelConsumer(
-    consumer_config,
-    ordering=True,
-    max_concurrency=5,
-    record_handler=record_handler.postmanEcho,
-    max_queue_backlog=16,
+  consumer_config,
+  ordering=True,
+  max_concurrency=5,
+  record_handler=record_handler.postmanEcho,
+  max_queue_backlog=16,
+  # dedup=DedupDefault(
+  #     dedup_by_key=True,
+  #     dedup_by_value=True,
+  #     dedup_max_lru=32,
+  #     dedup_algorithm="sha256",
+  # )
 )
 ```
 
@@ -63,9 +68,9 @@ consumer.poll(timeout=0.25)
 At last, upon calling the consumer method `.close()` as `graceful_shutdown` is set as `True`, it will wait all thread queue(s) to be processed. As additional queued items can be processed the argument `commit_before_closing` is set as `True` so a final commit can be issued before closing the consumer.
 ```Python
 consumer.close(
-    graceful_shutdown=True,
-    commit_before_closing=True,
-    commit_asynchronous=False,
+  graceful_shutdown=True,
+  commit_before_closing=True,
+  commit_asynchronous=False,
 )
 ```
 

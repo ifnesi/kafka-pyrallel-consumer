@@ -1,6 +1,7 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# Copyright 2022 Confluent Inc.
+# Copyright 2020 Confluent Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,6 +31,7 @@ from confluent_kafka.serialization import (
 )
 
 from kafka_pyrallel_consumer import PyrallelConsumer
+from kafka_pyrallel_consumer.dedup import DedupDefault
 
 
 class RecordHandler:
@@ -94,6 +96,12 @@ def main(args):
         max_concurrency=5,
         record_handler=record_handler.postmanEcho,
         max_queue_backlog=16,
+        # dedup=DedupDefault(
+        #     dedup_by_key=True,
+        #     dedup_by_value=True,
+        #     dedup_max_lru=32,
+        #     dedup_algorithm="sha256",
+        # )
     )
 
     try:
