@@ -17,13 +17,21 @@
 #
 import hashlib
 
+from abc import ABC, abstractmethod
 
-class DoNotDedup:
-    def is_message_duplicate(self, _):
+
+class DedupBase(ABC):
+    @abstractmethod
+    def is_message_duplicate(self, msg):
+        pass
+
+
+class DedupIgnore(DedupBase):
+    def is_message_duplicate(self, msg):
         return False
 
 
-class DedupDefault:
+class DedupDefault(DedupBase):
     def __init__(
         self,
         dedup_by_key: bool = False,

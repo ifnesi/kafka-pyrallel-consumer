@@ -18,6 +18,7 @@
 import time
 import queue
 import random
+import inspect
 import logging
 import binascii
 import datetime
@@ -25,7 +26,7 @@ import threading
 
 from confluent_kafka import Consumer, KafkaException
 
-from kafka_pyrallel_consumer.dedup import DoNotDedup
+from kafka_pyrallel_consumer.dedup import DedupBase, DedupIgnore
 
 
 def default_handler(msg):
@@ -98,10 +99,12 @@ class PyrallelConsumer(Consumer):
         self.last_msg_timestamp = 0  # record when the last message was received
         self.last_commit_timestamp = 0  # record when the last commit was issued (required to synchronous commits)
 
-        if dedup is None:
-            self._dedup = DoNotDedup()
-        else:
-            self._dedup = dedup
+        # Set/validate Dedup class
+        self._dedup = DedupIgnore() if dedup is None else dedup
+        if not isinstance(self._dedup, DedupBase):
+            raise ValueError(
+                "dedup must be a class instance of the abstract class DedupBase"
+            )
 
         # Create consumer queues and start consumer threads
         self._queues = list()
