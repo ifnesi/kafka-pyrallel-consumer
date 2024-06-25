@@ -23,8 +23,6 @@ To learn more about Parallel Consumers, check out the resources below (Java lang
 
 ## How the wrapper works?
 This class functions similarly to the standard `Consumer` class but with additional optional parameters:
-
-Parallel processing:
 - `max_concurrency` (int): Specifies the number of concurrent threads for handling consumed messages. The default is 3.
 - `ordering` (bool): When `True` (default), it hashes the message key, divides it, and assigns it to the corresponding queue/thread to maintain message order. If `False`, it randomly allocates the first message to a queue/thread and uses round-robin allocation for subsequent keys.
 - `record_handler` (function): A function to process messages within each thread, taking a single parameter `msg` as returned from a `consumer.poll` call.
