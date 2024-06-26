@@ -82,7 +82,10 @@ def main(args):
         try:
 
             key = "".join(random.choices(string.digits, k=2))
-            message = {"payload": uuid4().hex, "timestamp": int(time.time() * 1000)}
+            message = {
+                "payload": uuid4().hex,
+                "timestamp": int(time.time() * 1000),
+            }
 
             producer.produce(
                 topic=args.topic,

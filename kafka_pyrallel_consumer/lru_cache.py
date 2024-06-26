@@ -32,7 +32,10 @@ class LRUCacheBase(ABC):
     def __init__(self):
         self.dedup_max_lru = 32768
 
-    def _set_dedup_max_lru(self, dedup_max_lru: int,):
+    def _set_dedup_max_lru(
+        self,
+        dedup_max_lru: int,
+    ):
         self.dedup_max_lru = dedup_max_lru
 
     @abstractmethod
@@ -119,13 +122,11 @@ class RedisLRUCache(LRUCacheBase):
             return False
         else:
             # Recycle Hash, moving it to the end
-            self.redis_client.zrem(
-                self._redis_key_name,
-                key,
-            )
             self.redis_client.zadd(
                 self._redis_key_name,
-                {key: get_epoch_utc()},
+                {
+                    key: get_epoch_utc(),
+                },
             )
             return True
 
@@ -135,7 +136,9 @@ class RedisLRUCache(LRUCacheBase):
     ):
         self.redis_client.zadd(
             self._redis_key_name,
-            {key: get_epoch_utc()},
+            {
+                key: get_epoch_utc(),
+            },
         )
         if self.redis_client.zcard(self._redis_key_name) > self.dedup_max_lru:
             # Remove LRU item (lowest score)

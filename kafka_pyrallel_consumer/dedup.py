@@ -95,17 +95,15 @@ class DedupLRU(DedupBase):
             self._dedup_max_lru = max(1, dedup_max_lru)
 
             # Set/validate Dedup class
-            self._dedup = (
-                LocalLRUCache()
-                if dedupBackendClass is None
-                else dedupBackendClass
+            self._dedup_backend = (
+                LocalLRUCache() if dedupBackendClass is None else dedupBackendClass
             )
-            if not isinstance(self._dedup, LRUCacheBase):
+            if not isinstance(self._dedup_backend, LRUCacheBase):
                 raise ValueError(
                     "dedupBackendClass must be a class instance of the abstract class LRUCacheBase"
                 )
 
-            self._dedup._set_dedup_max_lru(dedup_max_lru)
+            self._dedup_backend._set_dedup_max_lru(dedup_max_lru)
             self._dedup_topics = dict()
             self._dedup_algorithm = DEDUP_ALGORITHMS.get(dedup_algorithm)
             if self._dedup_algorithm is None:
@@ -169,9 +167,9 @@ class DedupLRU(DedupBase):
         """
         Check if the hash is already in the LRU cache.
         """
-        exists = self._dedup.exists(hash)
+        exists = self._dedup_backend.exists(hash)
         if not exists:
             # Hash not in cache, append to the end
-            self._dedup.put(hash)
+            self._dedup_backend.put(hash)
             return False
         return True

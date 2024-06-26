@@ -100,8 +100,8 @@ class PyrallelConsumer(Consumer):
         self.last_commit_timestamp = 0  # record when the last commit was issued (required to synchronous commits)
 
         # Set/validate Dedup class
-        self._dedup = DedupIgnore() if dedupClass is None else dedupClass
-        if not isinstance(self._dedup, DedupBase):
+        self._dedup_backend = DedupIgnore() if dedupClass is None else dedupClass
+        if not isinstance(self._dedup_backend, DedupBase):
             raise ValueError(
                 "dedupClass must be a class instance of the abstract class DedupBase"
             )
@@ -243,7 +243,7 @@ class PyrallelConsumer(Consumer):
                             ) % self._max_concurrency
 
                         # Check for duplicated messages
-                        if not self._dedup.is_message_duplicate(msg):
+                        if not self._dedup_backend.is_message_duplicate(msg):
                             # Push message to the queue (if not duplicated or dedup check is not required)
                             self._queues[self._queue_id].put(msg)
                             self.last_msg = msg

@@ -105,9 +105,9 @@ def main(args):
         #     dedupBackendClass=RedisLRUCache(
         #         host="localhost",
         #         port=6379,
-        #         redis_key_name="pyrallel_consumer_lru_cache",
-        #     )
-        # )
+        #         redis_key_name=f"pyrallel_consumer_lru_cache_{''.join(filter(str.isalnum, args.group_id))}",
+        #     ),
+        # ),
     )
 
     try:
