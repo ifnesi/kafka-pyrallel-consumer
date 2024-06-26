@@ -18,7 +18,6 @@
 import time
 import queue
 import random
-import inspect
 import logging
 import binascii
 import datetime
@@ -44,7 +43,7 @@ class PyrallelConsumer(Consumer):
         max_concurrency: int = 3,
         record_handler: object = default_handler,
         max_queue_backlog: int = 1024,
-        dedup: object = None,
+        dedupClass: object = None,
         **kwargs,
     ):
         """
@@ -78,11 +77,11 @@ class PyrallelConsumer(Consumer):
             if that number is reached the polling will be automatically paused and wait for the queue to be cleared.
             The default is 1024.
 
-        *dedup (class instance)*
+        *dedupClass (class instance)*
             Instance of class to do the message deduplication. You can set any class instance here,
             however it must be an abstract class of `DedupBase` where it need to have at least one
             method called `is_message_duplicate` and its only argument is the Kafka polled message object (msg).
-            See example on the class `DedupLocalLRUCache` (`kafka_pyrallel_consumer/dedup.py`) where it will use an in-memory LRU cache.
+            See example on the class `DedupLRU` (`kafka_pyrallel_consumer/dedup.py`) where it will use an in-memory LRU cache.
             This parameter is optional and if not set will not dedup any message.
         """
         # Call original Consumer class method
@@ -101,10 +100,10 @@ class PyrallelConsumer(Consumer):
         self.last_commit_timestamp = 0  # record when the last commit was issued (required to synchronous commits)
 
         # Set/validate Dedup class
-        self._dedup = DedupIgnore() if dedup is None else dedup
+        self._dedup = DedupIgnore() if dedupClass is None else dedupClass
         if not isinstance(self._dedup, DedupBase):
             raise ValueError(
-                "dedup must be a class instance of the abstract class DedupBase"
+                "dedupClass must be a class instance of the abstract class DedupBase"
             )
 
         # Create consumer queues and start consumer threads

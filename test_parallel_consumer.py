@@ -31,7 +31,8 @@ from confluent_kafka.serialization import (
 )
 
 from kafka_pyrallel_consumer import PyrallelConsumer
-from kafka_pyrallel_consumer.dedup import DedupLocalLRUCache
+from kafka_pyrallel_consumer.dedup import DedupLRU
+from kafka_pyrallel_consumer.lru_cache import RedisLRUCache
 
 
 class RecordHandler:
@@ -96,11 +97,16 @@ def main(args):
         max_concurrency=5,
         record_handler=record_handler.postmanEcho,
         max_queue_backlog=16,
-        # dedup=DedupLocalLRUCache(
+        # dedupClass=DedupLRU(
         #     dedup_by_key=True,
         #     dedup_by_value=True,
-        #     dedup_max_lru=32,
+        #     dedup_max_lru=1024,
         #     dedup_algorithm="sha256",
+        #     dedupBackendClass=RedisLRUCache(
+        #         host="localhost",
+        #         port=6379,
+        #         redis_key_name="pyrallel_consumer_lru_cache",
+        #     )
         # )
     )
 

@@ -19,6 +19,8 @@ import hashlib
 
 from abc import ABC, abstractmethod
 
+from kafka_pyrallel_consumer.lru_cache import LRUCacheBase, LocalLRUCache
+
 
 class DedupBase(ABC):
     @abstractmethod
@@ -31,13 +33,14 @@ class DedupIgnore(DedupBase):
         return False
 
 
-class DedupLocalLRUCache(DedupBase):
+class DedupLRU(DedupBase):
     def __init__(
         self,
         dedup_by_key: bool = False,
         dedup_by_value: bool = False,
         dedup_max_lru: int = 32768,
         dedup_algorithm: str = "sha256",
+        dedupBackendClass: object = None,
     ):
         """
         Default class to deduplicate messages. It uses a local in-memory list.
@@ -56,12 +59,22 @@ class DedupLocalLRUCache(DedupBase):
             To deduplicate messages by Key and Value, set both dedup_by_key and dedup_by_value as True.
 
         *dedup_max_lru (int)*
-            Max Least Recently Used (LRU) cache size. The default is 32768.
+            Max LRU cache size. The default is 32768.
 
         *dedup_algorithm (str)*
             Deduplication hashing algorithm to use.
             Options available are: `md5`, `sha1`, `sha224`, `sha256` (default), `sha384`, `sha512`, `sha3_224`, `sha3_256`, `sha3_384`, `sha3_512`.
             To reduce memory footprint, the cached dedup will be a hash of the Key/Value other than the actual data.
+
+        *dedupBackendClass (class instance)*
+            Deduplication LRU cache backend class.
+            Instance of class where the LRU cache backend is implemented.
+            You can set any class instance here, however it must be an abstract class of `LRUCacheBase`.
+            By default it will implement an in-memory local LRU cache (`LocalLRUCache` on `kafka_pyrallel_consumer/lru_cache.py`),
+            please note that by having it in local memory it will not work properly in case of
+            consumer rebalance as there will be no cached dedup shared between consumers within the consumer group.
+            To have a more robust and shared LRU caching mechanism you can use `RedisLRUCache` (also on `kafka_pyrallel_consumer/lru_cache.py`),
+            or feel free to create your own backend.
         """
         self._dedup_by_key = dedup_by_key == True
         self._dedup_by_value = dedup_by_value == True
@@ -80,7 +93,19 @@ class DedupLocalLRUCache(DedupBase):
                 "sha3_512": hashlib.sha3_512,
             }
             self._dedup_max_lru = max(1, dedup_max_lru)
-            self._dedup_lru = list()
+
+            # Set/validate Dedup class
+            self._dedup = (
+                LocalLRUCache()
+                if dedupBackendClass is None
+                else dedupBackendClass
+            )
+            if not isinstance(self._dedup, LRUCacheBase):
+                raise ValueError(
+                    "dedupBackendClass must be a class instance of the abstract class LRUCacheBase"
+                )
+
+            self._dedup._set_dedup_max_lru(dedup_max_lru)
             self._dedup_topics = dict()
             self._dedup_algorithm = DEDUP_ALGORITHMS.get(dedup_algorithm)
             if self._dedup_algorithm is None:
@@ -90,23 +115,23 @@ class DedupLocalLRUCache(DedupBase):
     def is_message_duplicate(
         self,
         msg,
-    ):
+    ) -> bool:
         """
         Main method to be called.
         In general this method doesn't need to be overriden, only the methods called by it.
         """
         if self._check_for_dedup:
-            seed = self._get_message_seed(msg)
+            seed = self._generate_message_seed(msg)
 
             if seed is not None:
                 hash = self._hash_seed(msg, seed)
                 return self._is_hash_duplicate(hash)
         return False
 
-    def _get_message_seed(
+    def _generate_message_seed(
         self,
         msg,
-    ):
+    ) -> str:
         """
         Generate message seed based on Key, Value or Key/Value.
         """
@@ -121,7 +146,7 @@ class DedupLocalLRUCache(DedupBase):
         self,
         msg,
         seed,
-    ):
+    ) -> str:
         """
         Hash the seed, however it will prefix the seed with the message topic.
         That is to avoid clashes between similar messages in different topics.
@@ -140,43 +165,13 @@ class DedupLocalLRUCache(DedupBase):
     def _is_hash_duplicate(
         self,
         hash,
-    ):
+    ) -> bool:
         """
         Check if the hash is already in the LRU cache.
-        In general this method doesn't need to be overriden, only the methods called by it.
         """
-        if self._is_hash_in_cache(hash):
-            return True
-        else:
-            # Not a duplicated message, append to the LRU
-            self._is_cache_over_max()
-            self._append_to_cache(hash)
+        exists = self._dedup.exists(hash)
+        if not exists:
+            # Hash not in cache, append to the end
+            self._dedup.put(hash)
             return False
-
-    def _is_hash_in_cache(
-        self,
-        hash,
-    ):
-        """
-        Check if hash is already present in the LRU cache (in-memory list)
-        """
-        return hash in self._dedup_lru
-
-    def _is_cache_over_max(self):
-        """
-        Check if LRU cache (in-memory list) is greater or equal to dedup_max_lru.
-        """
-        if len(self._dedup_lru) >= self._dedup_max_lru:
-            self._pop_first_item()
-
-    def _pop_first_item(self):
-        """
-        Remove the first (older) element from the LRU cache (in-memory list).
-        """
-        self._dedup_lru.pop(0)
-
-    def _append_to_cache(self, hash):
-        """
-        Append a new element to the LRU cache (in-memory list).
-        """
-        self._dedup_lru.append(hash)
+        return True
