@@ -1,4 +1,4 @@
-version: '2'
+version: '3.8'
 
 services:
 
@@ -6,6 +6,7 @@ services:
     image: confluentinc/cp-zookeeper:$CONFLUENT_PLATFORM_VERSION
     hostname: zookeeper
     container_name: zookeeper
+    restart: always
     ports:
       - "2181:2181"
     environment:
@@ -18,6 +19,7 @@ services:
     container_name: broker
     depends_on:
       - zookeeper
+    restart: always
     ports:
       - "9092:9092"
       - "9101:9101"
@@ -47,6 +49,7 @@ services:
     container_name: schema-registry
     depends_on:
       - broker
+    restart: always
     ports:
       - "8081:8081"
     environment:
@@ -61,6 +64,7 @@ services:
     depends_on:
       - broker
       - schema-registry
+    restart: always
     ports:
       - "9021:9021"
     environment:
@@ -74,3 +78,12 @@ services:
       CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
       CONFLUENT_METRICS_TOPIC_REPLICATION: 1
       PORT: 9021
+
+  redis:
+    image: redis:$REDIS_VERSION
+    hostname: redis
+    container_name: redis
+    restart: always
+    ports:
+      - 6379:6379
+    command: redis-server --save 20 1 --loglevel warning
