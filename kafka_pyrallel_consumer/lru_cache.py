@@ -77,12 +77,14 @@ class LocalLRUCache(LRUCacheBase):
         self.cache[key] = None
         self.cache.move_to_end(key)
         if len(self.cache) > self.dedup_max_lru:
+            # Remove LRU item
             self.cache.popitem(last=False)
 
 
 class RedisLRUCache(LRUCacheBase):
     """
-    Backend class to implement LRU in Redis
+    Backend class to implement LRU in Redis.
+    It uses Sorted Sets where the score is the UTC EPOCH timestamp
     """
 
     def __init__(
@@ -136,6 +138,7 @@ class RedisLRUCache(LRUCacheBase):
             {key: get_epoch_utc()},
         )
         if self.redis_client.zcard(self._redis_key_name) > self.dedup_max_lru:
+            # Remove LRU item (lowest score)
             self.redis_client.zpopmin(
                 self._redis_key_name,
                 1,
