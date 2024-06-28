@@ -133,25 +133,11 @@ if __name__ == "__main__":
         default=DEFAULT_CONFIG,
     )
     parser.add_argument(
-        "--kafka-section",
-        dest="kafka_section",
-        type=str,
-        help=f"Section in the config file related to the Kafka cluster (e.g. kafka)",
-        default="kafka",
-    )
-    parser.add_argument(
-        "--sr-section",
-        dest="sr_section",
-        type=str,
-        help=f"Section in the config file related to the Schema Registry (e.g. schema-registry)",
-        default="schema-registry",
-    )
-    parser.add_argument(
         "--client-id",
         dest="client_id",
         type=str,
-        help=f"Consumer's Client ID (default is 'generic-avro-deserialiser-01')",
-        default="generic-avro-deserialiser-01",
+        help=f"Consumer's Client ID (default is 'avro-producer-pyrallel-01')",
+        default="avro-producer-pyrallel-01",
     )
     parser.add_argument(
         "--iterations",

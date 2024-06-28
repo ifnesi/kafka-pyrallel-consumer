@@ -194,15 +194,15 @@ if __name__ == "__main__":
         "--group-id",
         dest="group_id",
         type=str,
-        help=f"Consumer's Group ID (default is 'avro-deserialiser')",
-        default="avro-deserialiser",
+        help=f"Consumer's Group ID (default is 'avro-producer-pyrallel')",
+        default="avro-producer-pyrallel",
     )
     parser.add_argument(
         "--client-id",
         dest="client_id",
         type=str,
-        help=f"Consumer's Client ID (default is 'avro-deserialiser-01')",
-        default="avro-deserialiser-01",
+        help=f"Consumer's Client ID (default is 'avro-producer-pyrallel-01')",
+        default="avro-producer-pyrallel-01",
     )
 
     main(parser.parse_args())
