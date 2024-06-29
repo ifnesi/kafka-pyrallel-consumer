@@ -36,6 +36,7 @@ def default_handler(msg):
 
 
 class PyrallelConsumer(Consumer):
+    QUEUE_SIZE_NEXT_RECOUNT_SECONDS = 300
     def __init__(
         self,
         *args,
@@ -108,9 +109,16 @@ class PyrallelConsumer(Consumer):
 
         # Create consumer queues and start consumer threads
         self._queues = list()
+        self._queue_size = list()  # keep count of the queue size to avoid calling `qsize()` for every polled message
+        self._queue_size_next_recount = list()
         self._threads = list()
         for n in range(max_concurrency):
+            # Queues
             self._queues.append(queue.Queue())
+            self._queue_size.append(0)
+            # next time to perform a queue size recount
+            self._queue_size_next_recount.append(time.time() + self.QUEUE_SIZE_NEXT_RECOUNT_SECONDS)
+            # Threads
             self._threads.append(
                 threading.Thread(
                     target=self._processor,
@@ -122,17 +130,6 @@ class PyrallelConsumer(Consumer):
             logging.info(f"Starting parallel consumer thread #{n}...")
             thread.start()
 
-    def _has_reached_max_queue_backlog(self) -> bool:
-        """
-        Check whether queue(s) has reached the max_queue_backlog
-        """
-        qsize = 0
-        for q in self._queues:
-            qsize += q.qsize()
-            if qsize >= self._max_queue_lag:
-                return True  # no need to continue
-        return False
-
     def _processor(
         self,
         n: int,
@@ -142,13 +139,25 @@ class PyrallelConsumer(Consumer):
         """
         while True:
             if not self._queues[n].empty():
+                # Fetch message in the queue
                 msg = self._queues[n].get()
+                if self._queue_size_next_recount[n] < time.time():
+                    # Force a queue recount
+                    self._queue_size[n] = self._queues[n].qsize()
+                    self._queue_size_next_recount[n] = time.time() + self.QUEUE_SIZE_NEXT_RECOUNT_SECONDS
+                else:
+                    # Decrement queue size counter
+                    self._queue_size[n] -= 1
+                # Process message
                 self._record_handler(msg)
+
             elif self._stop:
                 logging.info(f"Stopped consumer thread #{n}")
                 break
+
             else:
                 # In case queue is empty wait 5ms before checking it again
+                # That is to avoid slowness for a large number of threads (>~ 15)
                 time.sleep(0.005)
 
     def commit(
@@ -217,10 +226,11 @@ class PyrallelConsumer(Consumer):
         It will poll Kafka and send the message to the corresponding queue/thread
         """
         if not (self._stop or self._paused):
-            if self._has_reached_max_queue_backlog():
+            if sum(self._queue_size) >= self._max_queue_lag:
                 logging.debug(
                     f"Polling is paused as it has reached the maximum backlog capacity of {self._max_queue_lag} queued items"
                 )
+                time.sleep(0.005)
 
             else:
                 # Call original Consumer class method
@@ -245,6 +255,7 @@ class PyrallelConsumer(Consumer):
                         # Check for duplicated messages
                         if not self._dedup_backend.is_message_duplicate(msg):
                             # Push message to the queue (if not duplicated or dedup check is not required)
+                            self._queue_size[self._queue_id] += 1
                             self._queues[self._queue_id].put(msg)
                             self.last_msg = msg
                             self.last_msg_timestamp = msg.timestamp()
