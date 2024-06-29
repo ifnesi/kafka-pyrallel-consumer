@@ -37,6 +37,7 @@ def default_handler(msg):
 
 class PyrallelConsumer(Consumer):
     QUEUE_SIZE_NEXT_RECOUNT_SECONDS = 300
+
     def __init__(
         self,
         *args,
@@ -109,7 +110,9 @@ class PyrallelConsumer(Consumer):
 
         # Create consumer queues and start consumer threads
         self._queues = list()
-        self._queue_size = list()  # keep count of the queue size to avoid calling `qsize()` for every polled message
+        self._queue_size = (
+            list()
+        )  # keep count of the queue size to avoid calling `qsize()` for every polled message
         self._queue_size_next_recount = list()
         self._threads = list()
         for n in range(max_concurrency):
@@ -117,7 +120,9 @@ class PyrallelConsumer(Consumer):
             self._queues.append(queue.Queue())
             self._queue_size.append(0)
             # next time to perform a queue size recount
-            self._queue_size_next_recount.append(time.time() + self.QUEUE_SIZE_NEXT_RECOUNT_SECONDS)
+            self._queue_size_next_recount.append(
+                time.time() + self.QUEUE_SIZE_NEXT_RECOUNT_SECONDS
+            )
             # Threads
             self._threads.append(
                 threading.Thread(
@@ -144,10 +149,13 @@ class PyrallelConsumer(Consumer):
                 if self._queue_size_next_recount[n] < time.time():
                     # Force a queue recount
                     self._queue_size[n] = self._queues[n].qsize()
-                    self._queue_size_next_recount[n] = time.time() + self.QUEUE_SIZE_NEXT_RECOUNT_SECONDS
+                    self._queue_size_next_recount[n] = (
+                        time.time() + self.QUEUE_SIZE_NEXT_RECOUNT_SECONDS
+                    )
                 else:
                     # Decrement queue size counter
                     self._queue_size[n] -= 1
+
                 # Process message
                 self._record_handler(msg)
 
