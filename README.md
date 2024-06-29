@@ -34,6 +34,8 @@ This class functions similarly to the standard `Consumer` class but with additio
   - `dedup_algorithm` (str): Deduplication hashing algorithm to use. Options available are: `md5`, `sha1`, `sha224`, `sha256` (default), `sha384`, `sha512`, `sha3_224`, `sha3_256`, `sha3_384`, `sha3_512`. To reduce memory footprint, the cached dedup will be a hash of the Key/Value other than the actual data.
   - `dedupBackendClass`: Deduplication LRU cache backend class. Instance of class where the LRU cache backend is implemented. You can set any class instance here, however it must be an abstract class of `LRUCacheBase`. By default it will implement an in-memory local LRU cache (`LocalLRUCache` on `kafka_pyrallel_consumer/lru_cache.py`), please note that by having it in local memory it will not work properly in case of consumer rebalance as there will be no cached dedup shared between consumers within the consumer group. To have a more robust and shared LRU caching mechanism you can use `RedisLRUCache` (also on `kafka_pyrallel_consumer/lru_cache.py`), or feel free to create your own backend.
 
+![image](docs/high-level-architecture.png)
+
 ## Example: `test_parallel_consumer.py`
 Check the example on `test_parallel_consumer.py`, it imports the wrapper consumer library:
 ```Python
@@ -359,7 +361,3 @@ It took around 4 seconds:
 - [Confluent Platform](https://www.confluent.io/en-gb/product/confluent-platform/)
 - [Confluent Control Center](https://docs.confluent.io/platform/current/control-center/index.html)
 - [confluent_kafka](https://docs.confluent.io/platform/current/clients/confluent-kafka-python/html/index.html) Python library (based on [librdkafka](https://github.com/confluentinc/librdkafka))
-
-Check out [Confluent's Developer portal](https://developer.confluent.io), it has free courses, documents, articles, blogs, podcasts and so many more content to get you up and running with a fully managed Apache Kafka service.
-
-Disclaimer: I work for Confluent :wink:
